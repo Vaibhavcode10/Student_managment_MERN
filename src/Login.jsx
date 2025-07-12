@@ -61,7 +61,7 @@ const Login = () => {
            }}>
         <h2 className="text-center text-2xl font-bold mb-5 text-white" 
             style={{textShadow: '0 0 8px rgba(0, 255, 255, 0.4)'}}>
-          Welcome Back 👋
+          Welcome Back 👋 
         </h2>
         
         {message && (

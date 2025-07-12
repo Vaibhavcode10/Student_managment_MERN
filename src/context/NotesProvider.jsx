@@ -1,10 +1,11 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const NotesContext = createContext();
 
 export const useNotes = () => useContext(NotesContext);
 
 export const NotesProvider = ({ children }) => {
+  const [subjects, setSubjects] = useState([]);
   const [subject, setSubject] = useState("");
   const [units, setUnits] = useState([]);
   const [note, setNote] = useState(null);
@@ -20,63 +21,80 @@ export const NotesProvider = ({ children }) => {
         .join("");
     } catch (err) {
       console.error("❌ Failed to decode hex:", hex);
-      return hex; // fallback to raw hex
+      return hex;
     }
   };
 
-  // 🔄 Fetch all subjects
+  // 🔄 Fetch and store all subjects
   const fetchSubjects = async () => {
     try {
       const res = await fetch(`${BASE_URL}/subjects`);
       const data = await res.json();
-      const subjects = data.subjects || [];
-
-      console.log("📚 Subjects fetched:", subjects);
-      return subjects;
+      const subjectList = data.subjects || [];
+      setSubjects(subjectList);
+      
     } catch (err) {
       console.error("❌ Error fetching subjects:", err);
-      return [];
+      setSubjects([]);
     }
   };
 
-  // 📂 Fetch units for a selected subject
-  const fetchUnits = async (subject) => {
+  // 📂 Fetch and store units based on selected subject
+  const fetchUnits = async (selectedSubject) => {
     try {
-      setSubject(subject);
-      setNote(null); // Reset previous note
-      const res = await fetch(`${BASE_URL}/units?subject=${subject}`);
+      setSubject(selectedSubject);
+      setNote(null);
+      const res = await fetch(`${BASE_URL}/units?subject=${selectedSubject}`);
       const data = await res.json();
       setUnits(data.units || []);
+      console.log(`📦 Units for "${selectedSubject}":`, data.units);
     } catch (err) {
       console.error("❌ Error fetching units:", err);
+      setUnits([]);
     }
   };
 
-  // 📜 Fetch note content for a specific unit
+  // 📜 Fetch and store specific note
   const fetchNote = async (unitHeading) => {
     try {
       const res = await fetch(
-        `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(
-          unitHeading
-        )}`
+        `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
       );
       const data = await res.json();
-      const rawNote = data.data || null;
 
-      // 👨‍💻 Decode hex code before saving
+      if (!data || !data.data) {
+        console.warn("⚠️ No note data found:", data);
+        setNote(null);
+        return;
+      }
+
+      const rawNote = data.data;
+
+      // 🧹 Strip full HTML tags and extract body content
+      if (rawNote?.content?.includes("<html")) {
+        const bodyMatch = rawNote.content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch) {
+          rawNote.content = bodyMatch[1]; // Only the body content
+        }
+      }
+
+      // 🔓 Decode hex code
       if (rawNote?.code) {
         rawNote.code = hexToString(rawNote.code);
       }
 
       setNote(rawNote);
+      console.log("📝 Note fetched:", rawNote);
     } catch (err) {
       console.error("❌ Error fetching note:", err);
+      setNote(null);
     }
   };
-
-  return (
+ 
+  return (  
     <NotesContext.Provider
       value={{
+        subjects,
         subject,
         units,
         note,

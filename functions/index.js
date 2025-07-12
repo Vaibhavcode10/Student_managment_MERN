@@ -620,7 +620,71 @@ tanushree.get("/getmcqcount", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 });
+
 //get notes by subject and unit
+ // 🔥 GET /api/subjects
+tanushree.get('/api/subjects', async (req, res) => {
+  try {
+    const snapshot = await db.collection('NotesStudy').listDocuments();
+    const subjects = snapshot.map(doc => doc.id);
+    res.json({ subjects });
+  } catch (err) {
+    console.error("🔥 Error fetching subjects:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+// 🔥 GET /api/units?subject=adv-java
+tanushree.get('/api/units', async (req, res) => {
+  const { subject } = req.query;
+
+  console.log('📥 Request received for units with subject:', subject);
+
+  if (!subject) {
+    console.log('❌ Missing subject param');
+    return res.status(400).json({ error: "Subject is required" });
+  }
+
+  try {
+    const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
+    const snapshot = await unitsRef.get();
+
+    console.log(`📄 Found ${snapshot.size} unit documents`);
+
+    const units = snapshot.docs.map(doc => {
+      const data = doc.data();
+      console.log(`➡️ Doc: ${doc.id}, unit: ${data.unit}, heading: ${data.heading}`);
+      return {
+        heading: data.heading || `Untitled Unit (${data.unit || doc.id})`,
+        unit: data.unit || ""
+      };
+    });
+
+    // Natural-like sorting
+    units.sort((a, b) => {
+      const toChunks = val => String(val.unit || "").split('.').map(Number);
+    
+      const A = toChunks(a);
+      const B = toChunks(b);
+    
+      for (let i = 0; i < Math.max(A.length, B.length); i++) {
+        if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0);
+      }
+    
+      return (a.heading || "").localeCompare(b.heading);
+    });
+    
+
+    console.log('✅ Sorted units:', units.map(u => u.unit));
+
+    return res.json({ subject, units });
+
+  } catch (err) {
+    console.error("🔥 Error fetching units:", err.message);
+    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+  }
+});
+
+// 🔥 GET /api/notes?subject=adv-java&unit=Layouts
 tanushree.get('/api/notes', async (req, res) => {
   const { subject, unit } = req.query;
 
@@ -635,34 +699,23 @@ tanushree.get('/api/notes', async (req, res) => {
 
     const snapshot = await unitsRef.get();
 
-    let match = null;
-    const queryTitle = unit.toLowerCase().trim();
-
-    snapshot.forEach(doc => {
+    const matchDoc = snapshot.docs.find(doc => {
       const data = doc.data();
-      const fullHeading = data.heading?.toLowerCase().trim();
-
-      // 🔎 Extract title-only (remove unit number if present)
-      const titleOnly = fullHeading?.replace(/^(\d+(\.\d+)?\.?)\s*/, '').trim();
-
-      // 💥 Flexible match: if query is contained in the title
-      if (titleOnly.includes(queryTitle)) {
-        match = { id: doc.id, data };
-      }
+      return String(data.unit).trim() === unit.trim();
     });
 
-    if (!match) {
-      return res.status(404).json({ 
-        error: 'Unit not found by partial title match',
+    if (!matchDoc) {
+      return res.status(404).json({
+        error: 'Unit not found',
         tried: unit,
-        availableHeadings: snapshot.docs.map(doc => doc.data().heading)
+        availableUnits: snapshot.docs.map(d => d.data().unit)
       });
     }
 
     return res.json({
       subject,
-      unit: match.id,  // actual document ID
-      data: match.data
+      unit: matchDoc.id,
+      data: matchDoc.data()
     });
 
   } catch (err) {
@@ -670,66 +723,6 @@ tanushree.get('/api/notes', async (req, res) => {
     return res.status(500).json({ error: 'Something went wrong' });
   }
 });
-
-// 📍 GET /api/subjects
-tanushree.get('/api/subjects', async (req, res) => {
-  try {
-    const notesRef = db.collection('NotesStudy');
-    const snapshot = await notesRef.listDocuments();
-    const subjects = snapshot.map(doc => doc.id);
-
-    return res.json({ subjects });
-  } catch (error) {
-    console.error("🔥 Error fetching subjects:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-// 📍 GET /api/units?subject=adv-java
-tanushree.get('/api/units', async (req, res) => {
-  const { subject } = req.query;
-
-  if (!subject) {
-    return res.status(400).json({ error: "Subject is required" });
-  }
-
-  try {
-    const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
-    const snapshot = await unitsRef.get();
-
-    const units = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        heading: data.heading || doc.id,
-        unit: data.unit || "", // could be something like "2.4" or ""
-      };
-    });
-
-    // ✨ Sort units: by numeric unit first (if available), fallback to heading
-    units.sort((a, b) => {
-      const getNum = (val) => {
-        const num = parseFloat(val.unit || "");
-        return isNaN(num) ? Infinity : num;
-      };
-
-      const numA = getNum(a);
-      const numB = getNum(b);
-
-      if (numA !== numB) return numA - numB;
-      return a.heading.localeCompare(b.heading);
-    });
-
-    return res.json({ subject, units });
-  } catch (error) {
-    console.error("🔥 Error fetching units:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-
-
-
-
 
 
 // ✅ Test route
