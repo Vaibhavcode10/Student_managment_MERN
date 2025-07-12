@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState } from "react";
 
 const NotesContext = createContext();
 
@@ -12,7 +12,7 @@ export const NotesProvider = ({ children }) => {
 
   const BASE_URL = "https://api-e5q6islzdq-uc.a.run.app/api";
 
-  // 🔁 Convert hex to readable string
+  // 🧠 Convert hex to readable string
   const hexToString = (hex) => {
     try {
       return hex
@@ -25,36 +25,78 @@ export const NotesProvider = ({ children }) => {
     }
   };
 
-  // 🔄 Fetch and store all subjects
+  // ✂️ Clean up heading by removing unit number from heading text
+  const cleanHeading = (unit, heading) => {
+    if (!unit || !heading) return heading || "Untitled";
+    
+    const unitStr = unit.toString();
+    const headingLower = heading.toLowerCase();
+    const unitLower = unitStr.toLowerCase();
+    
+    // Check if heading starts with unit number or zero-padded version
+    const startsWithUnit = headingLower.startsWith(unitLower) || 
+                         headingLower.startsWith('0' + unitLower);
+    
+    if (startsWithUnit) {
+      // Find where the unit number ends and remove it along with following separators
+      let cleanHeading = heading;
+      if (headingLower.startsWith(unitLower)) {
+        cleanHeading = heading.substring(unitStr.length);
+      } else if (headingLower.startsWith('0' + unitLower)) {
+        cleanHeading = heading.substring(unitStr.length + 1);
+      }
+      
+      // Remove leading separators (space, colon, dot, dash)
+      return cleanHeading.replace(/^[\s:.\-]+/, '').trim();
+    }
+    
+    return heading;
+  };
+
+  // 📚 Fetch subject list
   const fetchSubjects = async () => {
     try {
       const res = await fetch(`${BASE_URL}/subjects`);
       const data = await res.json();
       const subjectList = data.subjects || [];
       setSubjects(subjectList);
-      
     } catch (err) {
       console.error("❌ Error fetching subjects:", err);
       setSubjects([]);
     }
   };
 
-  // 📂 Fetch and store units based on selected subject
+  // 🧩 Fetch units for a subject
   const fetchUnits = async (selectedSubject) => {
     try {
       setSubject(selectedSubject);
       setNote(null);
+      setUnits([]); // 🧼 Clear previous units instantly
+
       const res = await fetch(`${BASE_URL}/units?subject=${selectedSubject}`);
       const data = await res.json();
-      setUnits(data.units || []);
-      console.log(`📦 Units for "${selectedSubject}":`, data.units);
+
+      const sorted = (data.units || []).sort((a, b) => {
+        const aUnit = parseFloat(a.unit);
+        const bUnit = parseFloat(b.unit);
+        return aUnit - bUnit;
+      });
+
+      // ✂️ Clean up headings for all units
+      const cleanedUnits = sorted.map(unit => ({
+        ...unit,
+        displayHeading: cleanHeading(unit.unit, unit.heading)
+      }));
+
+      setUnits(cleanedUnits);
+      console.log(`📦 Units for "${selectedSubject}":`, cleanedUnits);
     } catch (err) {
       console.error("❌ Error fetching units:", err);
       setUnits([]);
     }
   };
 
-  // 📜 Fetch and store specific note
+  // 📄 Fetch note data
   const fetchNote = async (unitHeading) => {
     try {
       const res = await fetch(
@@ -62,7 +104,7 @@ export const NotesProvider = ({ children }) => {
       );
       const data = await res.json();
 
-      if (!data || !data.data) {
+      if (!data?.data) {
         console.warn("⚠️ No note data found:", data);
         setNote(null);
         return;
@@ -70,15 +112,13 @@ export const NotesProvider = ({ children }) => {
 
       const rawNote = data.data;
 
-      // 🧹 Strip full HTML tags and extract body content
+      // ✂️ Extract only body content if full HTML exists
       if (rawNote?.content?.includes("<html")) {
         const bodyMatch = rawNote.content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        if (bodyMatch) {
-          rawNote.content = bodyMatch[1]; // Only the body content
-        }
+        if (bodyMatch) rawNote.content = bodyMatch[1];
       }
 
-      // 🔓 Decode hex code
+      // 🔓 Decode hexadecimal code block
       if (rawNote?.code) {
         rawNote.code = hexToString(rawNote.code);
       }
@@ -90,8 +130,8 @@ export const NotesProvider = ({ children }) => {
       setNote(null);
     }
   };
- 
-  return (  
+
+  return (
     <NotesContext.Provider
       value={{
         subjects,

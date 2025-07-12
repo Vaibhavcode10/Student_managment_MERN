@@ -22,13 +22,14 @@ export default function Notes() {
     fetchSubjects();
   }, [fetchSubjects]);
 
-  // 👇 When units are fetched, auto-select first unit
+  // 🔁 Auto-select first unit after units load
   useEffect(() => {
     if (units.length > 0 && !activeUnit) {
-      const firstUnit = units[0];
-      if (firstUnit.unit) {
-        setActiveUnit(firstUnit.unit);
-        fetchNote(firstUnit.unit);
+      const sorted = [...units].sort((a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999));
+      const first = sorted[0];
+      if (first?.unit) {
+        setActiveUnit(first.unit);
+        fetchNote(first.unit);
       }
     }
   }, [units]);
@@ -49,6 +50,7 @@ export default function Notes() {
       })
     : "";
 
+  // 🧹 Fix broken image links
   useEffect(() => {
     if (contentRef.current) {
       const images = contentRef.current.querySelectorAll("img");
@@ -65,42 +67,47 @@ export default function Notes() {
     }
   }, [sanitizedContent]);
 
+  // 📚 Sort units by their numeric unit field
+  const sortedUnits = [...units].sort(
+    (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
+  );
+
+  // ✂️ Clean up heading by removing unit number from heading text
+  const getHeadingDisplay = (unitObj) => {
+    const unitNum = unitObj.unit || "???";
+    let headingText = unitObj.heading || "Untitled";
+
+    // If heading starts with same unit number, remove it
+    if (headingText.startsWith(unitNum)) {
+      headingText = headingText.replace(unitNum, "").replace(/^[:.\s-]+/, "").trim();
+    }
+
+    return `Unit ${unitNum}: ${headingText}`;
+  };
+
   return (
-    <div
-      className={`flex h-screen font-sans overflow-auto ${
-        theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-gray-200"
-      }`}
-    >
+    <div className={`flex h-screen font-sans overflow-auto ${theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-gray-200"}`}>
       {/* Sidebar */}
-      <div
-        className={`w-[280px] p-4 border-r shadow-sm flex flex-col ${
-          theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
-        }`}
-      >
-        {/* Subject Dropdown */}
+      <div className={`w-[280px] p-4 border-r shadow-sm flex flex-col ${theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"}`}>
         <select
           onChange={(e) => {
             fetchUnits(e.target.value);
-            setActiveUnit(null); // reset selection
+            setActiveUnit(null);
           }}
           value={subject}
           className="w-full p-2.5 mb-1 rounded-md border border-gray-300 text-sm"
         >
           <option value="">-- Select Subject --</option>
           {subjects.map((subj, idx) => (
-            <option key={idx} value={subj}>
-              {subj}
-            </option>
+            <option key={idx} value={subj}>{subj}</option>
           ))}
         </select>
 
-        {/* Unit List */}
         <div className="flex-1 overflow-y-auto">
           <ul className="list-none p-0 m-0 text-left">
-            {units.map((unit, idx) => {
+            {sortedUnits.map((unit, idx) => {
               const unitId = unit.unit || `unit-${idx}`;
               const isActive = activeUnit === unitId;
-              const displayText = `Unit ${unit.unit || "???"}: ${unit.heading || "Untitled"}`;
 
               return (
                 <li
@@ -116,7 +123,7 @@ export default function Notes() {
                       : "bg-gray-800 border-gray-700"
                   }`}
                 >
-                  {displayText}
+                  {getHeadingDisplay(unit)}
                 </li>
               );
             })}
@@ -125,39 +132,25 @@ export default function Notes() {
       </div>
 
       {/* Content Area */}
-      <div
-        className={`flex-1 overflow-y-auto p-6 ${
-          theme === "light" ? "bg-gray-100" : "bg-[#1a1a1a]"
-        }`}
-      >
+      <div className={`flex-1 overflow-y-auto p-6 ${theme === "light" ? "bg-gray-100" : "bg-[#1a1a1a]"}`}>
         {note ? (
-          <>
-            {/* Unit Title */}
-           
-
-            {/* Rendered HTML */}
-            <div
-              ref={contentRef}
-              className={`leading-relaxed text-base rounded-lg shadow-sm mb-1 px-6 py-6 ${
-                theme === "light" ? "bg-white" : "bg-[#1e1e1e]"
-              } text-left prose max-w-full`}
-            >
-              <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
-            </div>
-
-            {/* Code Block */}
+          <div
+            ref={contentRef}
+            className={`leading-relaxed text-base rounded-lg shadow-sm px-6 py-6 ${
+              theme === "light" ? "bg-white" : "bg-[#1e1e1e]"
+            } text-left prose max-w-full`}
+          >
+            <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
             {note.code && (
-              <pre
-                className={` text-left rounded-lg px-6 py-4 overflow-x-auto whitespace-pre-wrap break-words border text-sm font-mono ${
-                  theme === "light"
-                    ? "bg-gray-100 text-gray-800 border-gray-300"
-                    : "bg-[#1e1e1e] text-green-200 border-gray-600"
-                }`}
-              >
+              <pre className={`mt-4 px-4 py-3 rounded border overflow-x-auto text-sm font-mono ${
+                theme === "light"
+                  ? "bg-gray-100 text-gray-800 border-gray-300"
+                  : "bg-[#1e1e1e] text-green-200 border-gray-600"
+              }`}>
                 <code>{note.code}</code>
               </pre>
             )}
-          </>
+          </div>
         ) : (
           <div className="text-center text-gray-500 mt-20 text-base">
             👈 Select a unit to view the notes
