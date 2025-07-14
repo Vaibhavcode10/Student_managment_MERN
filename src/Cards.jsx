@@ -70,14 +70,14 @@ export default function Cards() {
     },
     {
       id: "roles",
-      icon: "👑",
-      title: "Manage Roles",
-      description: "Grant or revoke permissions",
-      color: "from-purple-600 to-pink-600",
-      darkColor: "from-purple-700 to-pink-700",
-      size: "medium",
-      link: "/dashboard/superadmin",
-      visible: normalizedRole === "superadmin"
+      icon: "📚",
+      title: "Manage roles",
+      description: "Handle course assignments",
+      color: "from-purple-500 via-blue-500 to-teal-400",
+      darkColor: "from-cyan-600 to-blue-700",
+      size: "small",
+      link: "/dashboard/roles",
+      visible: [ "superadmin"].includes(normalizedRole)
     },
     {
       id: "notes",
@@ -110,7 +110,7 @@ export default function Cards() {
       darkColor: "from-sky-600 to-blue-700",
       size: "small",
       link: "/dashboard/notes",
-      visible: normalizedRole === "student"
+      visible: ["student", "admin", "superadmin"].includes(normalizedRole)
     },
     {
       id: "receipts",

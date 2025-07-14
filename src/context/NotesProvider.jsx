@@ -130,6 +130,31 @@ export const NotesProvider = ({ children }) => {
       setNote(null);
     }
   };
+  // ✏️ Update note data (PATCH)
+const updateNote = async (unitId, updatedFields) => {
+  try {
+    const res = await fetch(`${BASE_URL}/notes/${subject}/${encodeURIComponent(unitId)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updatedFields),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to update note");
+    }
+
+    console.log("✅ Note updated successfully:", data);
+    return { success: true, message: data.message || "Note updated" };
+  } catch (err) {
+    console.error("❌ Error updating note:", err.message);
+    return { success: false, error: err.message };
+  }
+};
+
 
   return (
     <NotesContext.Provider
@@ -141,6 +166,7 @@ export const NotesProvider = ({ children }) => {
         fetchSubjects,
         fetchUnits,
         fetchNote,
+        updateNote
       }}
     >
       {children}

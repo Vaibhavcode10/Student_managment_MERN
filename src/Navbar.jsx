@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "./context/UserProvider"; // make sure this exists
 export default function Navbar() {
   const navigate = useNavigate();
-  const { logout, email: userEmail, theme, toggleTheme } = useUser();
+  const { logout, email: userEmail, theme, toggleTheme, role } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -44,12 +44,10 @@ export default function Navbar() {
   return (
     <>
       <div className={`backdrop-blur-md ${navbarBg} border-b shadow-sm`}>
-      <div className="flex justify-between items-center px-6 py-2 min-h-[56px]">
-
+        <div className="flex justify-between items-center px-6 py-2 min-h-[56px]">
           {/* Left Side - Logo and Title */}
           <div className="flex items-center space-x-4">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">D</span>
             </div>
             <h1
@@ -77,7 +75,7 @@ export default function Navbar() {
             </div>
           )}
 
-{location.pathname === "/dashboard/notes" && (
+          {location.pathname === "/dashboard/notes" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <h1 className=" text-2xl font-bold">Notes</h1>
             </div>
@@ -144,6 +142,17 @@ export default function Navbar() {
                   >
                     Change Password
                   </button>
+                 {/* edit notes */}
+                  {role === "superadmin" && (
+                    <button
+                      onClick={() => navigate("/dashboard/editnotes")}
+                      className={`w-full text-left px-4 py-2 ${
+                        theme === "dark" ? "text-green-300" : "text-green-700"
+                      }`}
+                    >
+                      Edit Notes
+                    </button>
+                  )}
 
                   {/* Logout */}
                   <button

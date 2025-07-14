@@ -7,17 +7,17 @@ import Dashboard from "./Dashboard";
 // Pages
 import Login from "./Login";
 import Register from "./Register";
-import ChangePasswordCard from "./trial/Changepassword";
+import ChangePasswordCard from "./Allfiles/Changepassword";
 import CrudStudents from "./Admin_section/Crudstudents";
 import MakeAdmin from "./tanushree/MakeAdmin";
-import StudentDetails from "./trial/StudentDetails";
-import Mymcq from './trial/Mymcq'
-import Mytest from "./trial/Mytest";
-
-import InterviewPrep from "./trial/InterviewPrep";
+import StudentDetails from "./Allfiles/StudentDetails";
+import Mymcq from './Allfiles/Mymcq'
+import Mytest from "./Allfiles/Mytest";
+import Edinotes from './Allfiles/Editnotes'
+import InterviewPrep from "./Allfiles/InterviewPrep";
 import Cards from "./cards"; // 👈 import this for index route
-import ComplaintCard from "./trial/ComplaintCard";
-import Notes from "./trial/Notes";
+import ComplaintCard from "./Allfiles/ComplaintCard";
+import Notes from "./Allfiles/Notes";
 
 const AppRoutes = () => {
   const { user } = useUser();
@@ -48,12 +48,13 @@ const AppRoutes = () => {
         <Route path="changepassword" element={<ChangePasswordCard />} />
         <Route path="students" element={<CrudStudents />} />
         <Route path="updatedetails" element={<StudentDetails />} />
-        <Route path="superadmin" element={<MakeAdmin />} />
+        <Route path="roles" element={<MakeAdmin />} />
         <Route path="complaints" element={<ComplaintCard />} />
         <Route path="interview" element={<InterviewPrep />} />
         <Route path="mcq" element={<Mymcq />} />
         <Route path="test" element={<Mytest />} />
          <Route path="notes" element={<Notes/>} />
+         <Route path="editnotes" element={<Edinotes/>} />
       </Route>
 
       {/* Fallback */}

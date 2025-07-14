@@ -723,6 +723,47 @@ tanushree.get('/api/notes', async (req, res) => {
     return res.status(500).json({ error: 'Something went wrong' });
   }
 });
+// edit the notes
+tanushree.patch("/notes/:subject/:unit", async (req, res) => {
+  const { subject, unit } = req.params;
+  const { content, heading, code, unit: newUnit } = req.body;
+
+  const updateData = {};
+  if (content !== undefined) updateData.content = content;
+  if (heading !== undefined) updateData.heading = heading;
+  if (code !== undefined) updateData.code = code;
+  if (newUnit !== undefined) updateData.unit = newUnit;
+
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: "No fields provided to update" });
+  }
+
+  try {
+    // 🔁 Type-safe comparison
+    let unitToMatch = isNaN(unit) ? unit : parseFloat(unit);
+
+    const snapshot = await db
+      .collection("NotesStudy")
+      .doc(subject)
+      .collection("units")
+      .where("unit", "==", unitToMatch)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: "Note not found for that unit" });
+    }
+
+    const docRef = snapshot.docs[0].ref;
+    await docRef.update(updateData);
+
+    res.status(200).json({ message: "Note updated successfully" });
+
+  } catch (error) {
+    console.error("🔥 Update error:", error);
+    res.status(500).json({ error: "Failed to update note" });
+  }
+});
 
 
 // ✅ Test route
