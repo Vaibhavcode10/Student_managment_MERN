@@ -150,7 +150,7 @@ const InterviewPrep = () => {
 
 
       {/* Scrollable Table Container */}
-      <div className={`bg-${getThemeClass('gray-200', 'gray-800')}/60 backdrop-blur-xl rounded-xl overflow-hidden shadow-lg`}>
+      <div className={` bg-${getThemeClass('gray-200', 'gray-800')}/60 backdrop-blur-xl rounded-xl overflow-hidden shadow-lg`}>
         <div className="max-h-[120vh] overflow-y-auto mb-5">
           <table className="w-full table-auto text-lg">
             <thead className={`bg-${getThemeClass('gray-200', 'gray-800')} text-sm text-${getThemeClass('gray-600', 'gray-400')} uppercase sticky top-0 z-10`}>
@@ -165,7 +165,7 @@ const InterviewPrep = () => {
               </tr>
             </thead>
 
-            <tbody className={`divide-y divide-${getThemeClass('gray-300', 'gray-700')}`}>
+            <tbody className={`divide-y  divide-${getThemeClass('gray-300', 'gray-700')} my-scrollable-div`}>
               {filteredProblems.length > 0 ? (
                 filteredProblems.map((prob, index) => (
                   <tr

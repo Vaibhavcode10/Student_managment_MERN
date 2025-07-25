@@ -190,7 +190,7 @@ export default function CompactMcqSelector() {
 
   {/* 👉 MCQ Numbers Grid */}
   {selectedSubject ? (
-    <div className="flex-1 overflow-y-auto scrollbar-custom mt-3 pr-1">
+    <div className="flex-1 overflow-y-auto   mt-3 pr-1 my-scrollable-div">
       <div className="grid grid-cols-5 gap-2">
         {mcqNumbers.map((num) => (
           <button

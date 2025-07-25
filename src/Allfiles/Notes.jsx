@@ -126,38 +126,36 @@ float result = (x - y) / (z + 1);
         className={`w-full my-scrollable-div md:w-[280px] p-4 border-b md:border-b-0 md:border-r shadow-sm flex flex-col  ${theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
           }`}
       >
-     <div className="relative mb-4">
-  <div
-    className="p-[2px] rounded-md bg-gradient-to-r from-blue-800 via-indigo-700 to-purple-800 animate-borderFlash shadow-[0_0_20px_4px_rgba(99,102,241,0.5)]"
-    style={{
-      backgroundSize: '300% 300%',
-    }}
-  >
-    <select
-      onChange={(e) => {
-        fetchUnits(e.target.value);
-        setActiveUnit(null);
-        setSaveStatus(null);
-      }}
-      value={subject}
-      className={`w-full   my-scrollable-div p-2.5 rounded-md border border-black text-sm appearance-none focus:outline-none transition-all duration-300 ${
-        theme === "light"
-          ? "bg-white border-gray-300 text-gray-900"
-          : "bg-[#1e1e1e] border-[#333] text-white"
-      }`}
-    >
-      <option value="" disabled hidden>
-        -- Select Subject --
-      </option>
-      {subjects.map((subj, idx) => (
-        <option key={idx} value={subj}>
-          {subjectNameMap[subj] || subj}
-        </option>
-      ))}
-    </select>
-  </div>
-</div>
-
+        <div className="relative mb-4">
+          <div
+            className="p-[2px] rounded-md bg-gradient-to-r from-blue-800 via-indigo-700 to-purple-800 animate-borderFlash shadow-[0_0_20px_4px_rgba(99,102,241,0.5)]"
+            style={{
+              backgroundSize: '300% 300%',
+            }}
+          >
+            <select
+              onChange={(e) => {
+                fetchUnits(e.target.value);
+                setActiveUnit(null);
+                setSaveStatus(null);
+              }}
+              value={subject}
+              className={`w-full   my-scrollable-div p-2.5 rounded-md  p-3.5  text-[1.2] appearance-none focus:outline-none transition-all duration-300 ${theme === "light"
+                  ? "bg-white border-gray-300 text-gray-900"
+                  : "bg-[#1e1e1e] border-[#333] text-white"
+                }`}
+            >
+              <option value="" disabled hidden>
+                -- Select Subject --
+              </option>
+              {subjects.map((subj, idx) => (
+                <option key={idx} value={subj} className="text-base text-black dark:text-white">
+                  {subjectNameMap[subj] || subj}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <div className="flex-1 overflow-y-auto my-scrollable-div">
           <ul className="list-none p-0 m-0 text-left">
@@ -169,13 +167,13 @@ float result = (x - y) / (z + 1);
                 <li
                   key={unitId}
                   onClick={() => handleUnitClick(unitId)}
-                  className={`cursor-pointer mb-3 p-3.5 rounded-md border text-sm transition-colors ${isActive
-                      ? theme === "light"
-                        ? "bg-blue-100 border-blue-300"
-                        : "bg-gray-700 border-gray-600"
-                      : theme === "light"
-                        ? "bg-gray-50 border-gray-300"
-                        : "bg-gray-800 border-gray-700"
+                  className={`cursor-pointer mb-3 p-3.5 font-semibold text-[1.1rem] rounded-md border text-sm transition-colors ${isActive
+                    ? theme === "light"
+                      ? "bg-blue-100 border-blue-300"
+                      : "bg-gray-700 border-gray-600"
+                    : theme === "light"
+                      ? "bg-gray-50 border-gray-300"
+                      : "bg-gray-800 border-gray-700"
                     }`}
                 >
                   {getHeadingDisplay(unit)}
@@ -208,7 +206,7 @@ float result = (x - y) / (z + 1);
               overflowWrap: "break-word",
               wordBreak: "break-word",
               width: "100%", // Ensure content fills the container
-               // Add some padding for readability
+              // Add some padding for readability
             }}
           >
             {note?.content ? (
