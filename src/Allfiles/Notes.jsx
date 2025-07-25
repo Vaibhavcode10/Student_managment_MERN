@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useNotes } from "../context/NotesProvider";
 import { useUser } from "../context/UserProvider";
 import HtmlViewer from "./HtmlViewer";
@@ -116,37 +116,50 @@ float result = (x - y) / (z + 1);
     "react": "React.js"
   };
 
-  const iframeRef = useRef(null);
-
   return (
     <div
-      className={`flex flex-col md:flex-row h-screen font-sans overflow-y-hidden ${
-        theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-gray-200"
-      }`}
+      className={`flex flex-col md:flex-row h-screen font-sans overflow-y-hidden ${theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-gray-200"
+        }`}
     >
       {/* Sidebar */}
       <div
-        className={`w-full md:w-[280px] p-4 border-b md:border-b-0 md:border-r shadow-sm flex flex-col ${
-          theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
-        }`}
+        className={`w-full my-scrollable-div md:w-[280px] p-4 border-b md:border-b-0 md:border-r shadow-sm flex flex-col  ${theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
+          }`}
       >
-        <select
-          onChange={(e) => {
-            fetchUnits(e.target.value);
-            setActiveUnit(null);
-          }}
-          value={subject}
-          className="w-full p-2.5 mb-1 rounded-md border border-gray-300 text-sm"
-        >
-          <option value="">-- Select Subject --</option>
-          {subjects.map((subj, idx) => (
-            <option key={idx} value={subj}>
-              {subjectNameMap[subj] || subj}
-            </option>
-          ))}
-        </select>
+     <div className="relative mb-4">
+  <div
+    className="p-[2px] rounded-md bg-gradient-to-r from-blue-800 via-indigo-700 to-purple-800 animate-borderFlash shadow-[0_0_20px_4px_rgba(99,102,241,0.5)]"
+    style={{
+      backgroundSize: '300% 300%',
+    }}
+  >
+    <select
+      onChange={(e) => {
+        fetchUnits(e.target.value);
+        setActiveUnit(null);
+        setSaveStatus(null);
+      }}
+      value={subject}
+      className={`w-full   my-scrollable-div p-2.5 rounded-md border border-black text-sm appearance-none focus:outline-none transition-all duration-300 ${
+        theme === "light"
+          ? "bg-white border-gray-300 text-gray-900"
+          : "bg-[#1e1e1e] border-[#333] text-white"
+      }`}
+    >
+      <option value="" disabled hidden>
+        -- Select Subject --
+      </option>
+      {subjects.map((subj, idx) => (
+        <option key={idx} value={subj}>
+          {subjectNameMap[subj] || subj}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
-        <div className="flex-1 overflow-y-auto">
+
+        <div className="flex-1 overflow-y-auto my-scrollable-div">
           <ul className="list-none p-0 m-0 text-left">
             {sortedUnits.map((unit, idx) => {
               const unitId = unit.unit || `unit-${idx}`;
@@ -156,15 +169,14 @@ float result = (x - y) / (z + 1);
                 <li
                   key={unitId}
                   onClick={() => handleUnitClick(unitId)}
-                  className={`cursor-pointer mb-2 p-2 rounded-md border text-sm transition-colors ${
-                    isActive
+                  className={`cursor-pointer mb-3 p-3.5 rounded-md border text-sm transition-colors ${isActive
                       ? theme === "light"
                         ? "bg-blue-100 border-blue-300"
                         : "bg-gray-700 border-gray-600"
                       : theme === "light"
-                      ? "bg-gray-50 border-gray-300"
-                      : "bg-gray-800 border-gray-700"
-                  }`}
+                        ? "bg-gray-50 border-gray-300"
+                        : "bg-gray-800 border-gray-700"
+                    }`}
                 >
                   {getHeadingDisplay(unit)}
                 </li>
@@ -176,26 +188,27 @@ float result = (x - y) / (z + 1);
 
       {/* Main Viewer */}
       <div
-        className="flex-1 md:px-0 overflow-y-auto justify-center"
+        className="flex-1  md:px-0 overflow-y-auto  my-scrollable-div justify-center"
         style={{
-          height: "100%", // Ensure the container takes full height
+          maxHeight: "100%", // Adjusted to use full height
           backgroundColor: theme === "light" ? "#fdfdfd" : "#1e1e1e",
+          width: "100%", // Ensure it takes full available width
         }}
       >
         <div
-          className="w-full h-full" // Ensure the inner div takes full height
+          className="w-full"
           style={{
-            width: "100%",
-            overflowX: "hidden",
+            width: "100%", // Remove fixed maxWidth to adapt to viewport
+            overflowX: "hidden", // Prevent horizontal scroll
           }}
         >
           <div
-            className="prose max-w-none h-full" // Ensure the prose div takes full height
+            className="prose max-w-none text-left"
             style={{
               overflowWrap: "break-word",
               wordBreak: "break-word",
-              width: "100%",
-              height: "100%", // Match the height of the container
+              width: "100%", // Ensure content fills the container
+               // Add some padding for readability
             }}
           >
             {note?.content ? (

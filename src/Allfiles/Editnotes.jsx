@@ -4,8 +4,7 @@ import { useUser } from "../context/UserProvider";
 import { Menu, Eye, Edit3, Save, CheckCircle, XCircle } from "lucide-react";
 import MonacoEditor from "@monaco-editor/react";
 import DOMPurify from "dompurify";
-import HtmlViewer from "./HtmlViewer"; // adjust path if needed
-
+import HtmlViewer from "./HtmlViewer";
 export default function Editnotes() {
   const { theme } = useUser();
   const {
@@ -22,7 +21,7 @@ export default function Editnotes() {
   const [activeUnit, setActiveUnit] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [mode, setMode] = useState("view");
-   const [editedHtml, setEditedHtml] = useState("");
+  const [editedHtml, setEditedHtml] = useState("");
   const [editedCode, setEditedCode] = useState("");
   const [editedHeading, setEditedHeading] = useState("");
   const [editedUnit, setEditedUnit] = useState("");
@@ -135,29 +134,6 @@ export default function Editnotes() {
     return DOMPurify.sanitize(editedHtml || "");
   };
 
-   const subjectNameMap = {
-    "adv-python": "Advanced Python",
-    "bootstrap": "Bootstrap",
-    "c": "C Programming",
-    "cpp": "C++ Programming",
-    "css": "CSS",
-    "dsa": "Data Structures & Algorithms",
-    "dsaj": "DSA with Java",
-    "express": "Express.js",
-    "flutter": "Flutter",
-    "html": "HTML",
-    "java": "Java",
-    "javascript": "JavaScript",
-    "kid-python": "Python for Kids",
-    "kidpython": "Python for Kids",
-    "mongo": "MongoDB",
-    "mysql": "MySQL",
-    "nextjs": "Next.js",
-    "postgres": "PostgreSQL",
-    "power_bi": "Power BI",
-    "python": "Python",
-    "react": "React.js"
-  };
   return (
     <div
       className={`flex h-screen overflow-hidden font-sans ${
@@ -189,12 +165,11 @@ export default function Editnotes() {
             }`}
           >
             <option value="">-- Select Subject --</option>
-          {subjects.map((subj, idx) => (
-  <option key={idx} value={subj}>
-    {subjectNameMap[subj] || subj}
-  </option>
-))}
-
+            {subjects.map((subj, idx) => (
+              <option key={idx} value={subj}>
+                {subj}
+              </option>
+            ))}
           </select>
 
           <div className="flex-1 overflow-y-auto my-scrollable-div">
@@ -393,10 +368,42 @@ export default function Editnotes() {
         )}
 
         {/* Editor or Viewer - Full Height */}
-        <div className="h-full w-full overflow-hidden pt-[60px] ">
+        <div className="h-full w-full overflow-hidden  text-left ">
           {mode === "view" ? (
             // View Mode - Full height with proper scrolling
-           <HtmlViewer htmlContent={editedHtml} theme={theme} />
+            <div
+              className={`h-full w-full overflow-auto pt-4 my-scrollable-div ${
+                theme === "light" ? "bg-white" : "bg-[#1e1e1e]"
+              }`}
+            >
+              <HtmlViewer 
+  htmlContent={getSanitizedHtml()} 
+  customStyles="" 
+/>
+              
+
+              {/* Code Block Display */}
+              {editedCode && (
+                <div className="m-1">
+                  <h3
+                    className={`text-lg font-semibold mb-3 ${
+                      theme === "light" ? "text-gray-900" : "text-gray-100"
+                    }`}
+                  >
+                    Code Block:
+                  </h3>
+                  <pre
+                    className={`p-4 rounded-md text-sm font-mono overflow-x-auto ${
+                      theme === "light"
+                        ? "bg-gray-100 text-gray-900 border border-gray-300"
+                        : "bg-gray-900 text-gray-100 border border-gray-700"
+                    }`}
+                  >
+                    <code>{editedCode}</code>
+                  </pre>
+                </div>
+              )}
+            </div>
           ) : (
             // Edit Mode - Full VS Code-like editor
             <div className="h-full w-full flex relative">

@@ -15,10 +15,10 @@ import Mymcq from './Allfiles/Mymcq'
 import Mytest from "./Allfiles/Mytest";
 import Edinotes from './Allfiles/Editnotes'
 import InterviewPrep from "./Allfiles/InterviewPrep";
-import Cards from "./Cards"; // 👈 import this for index route
+import Cards from "./cards"; // 👈 import this for index route
 import ComplaintCard from "./Allfiles/ComplaintCard";
 import Notes from "./Allfiles/Notes";
- 
+
 const AppRoutes = () => {
   const { user } = useUser();
 
@@ -54,7 +54,7 @@ const AppRoutes = () => {
         <Route path="mcq" element={<Mymcq />} />
         <Route path="test" element={<Mytest />} />
          <Route path="notes" element={<Notes/>} />
-         <Route path="editnotes" element={<Edinotes/>} /> 
+         <Route path="editnotes" element={<Edinotes/>} />
       </Route>
 
       {/* Fallback */}

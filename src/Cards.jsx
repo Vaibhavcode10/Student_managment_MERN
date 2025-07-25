@@ -188,7 +188,7 @@ export default function Cards() {
   return (
     <>
       {/* Body */}
-      <div  className="overflow-x-hidden">
+      <div >
         {/* stats */}
         {/* Toggle Button (Only visible on md and up) */}
         <div className="w-full flex justify-start mt-2 md:ml-4 ">

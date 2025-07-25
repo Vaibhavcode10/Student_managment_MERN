@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from '../context/UserContext'; // Adjust path if needed
+import React from 'react';
+import { useUser } from '../context/UserProvider'; // adjust path if needed
 
 const HtmlViewer = ({ htmlContent, customStyles = '' }) => {
   const { theme } = useUser();
-  const [combinedStyles, setCombinedStyles] = useState('');
 
-  // Base styles to match Bootstrap and app's theme
+  // Base styles to match Bootstrap and app's theme, plus support for backend classes
   const baseStyles = `
     .html-viewer {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       line-height: 1.8;
       padding: 20px;
-      color: ${theme === 'dark' ? '#ddd' : '#212529'};
+      color: ${theme === 'dark' ? '#ddd' : '#0f0f0fff'};
       background-color: ${theme === 'dark' ? '#343a40' : '#fff'};
     }
     .html-viewer h1, .html-viewer h2, .html-viewer h3, .html-viewer h4, .html-viewer h5, .html-viewer h6 {
@@ -118,47 +117,13 @@ const HtmlViewer = ({ htmlContent, customStyles = '' }) => {
       text-align: center;
       color: ${theme === 'dark' ? '#e0e0e0' : '#212529'};
     }
+    ${customStyles}
   `;
-
-  // Function to extract styles and clean HTML
-  const processHtmlContent = (content) => {
-    // Create a temporary DOM element to parse HTML
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(content, 'text/html');
-    let extractedStyles = '';
-
-    // Extract styles from <style> tags
-    const styleTags = doc.querySelectorAll('style');
-    styleTags.forEach((tag) => {
-      extractedStyles += tag.textContent + '\n';
-      tag.remove(); // Remove the style tag from the DOM
-    });
-
-    // Serialize the cleaned HTML (without <style> tags)
-    const cleanedHtml = doc.documentElement.outerHTML;
-    return { cleanedHtml, extractedStyles };
-  };
-
-  // Process HTML content and set styles when htmlContent changes
-  useEffect(() => {
-    const { cleanedHtml, extractedStyles } = processHtmlContent(htmlContent);
-    // Combine baseStyles, extractedStyles, and customStyles
-    setCombinedStyles(`
-      ${baseStyles}
-      ${extractedStyles}
-     
-    `);
-    // Update the HTML content to use the cleaned version
-    setCleanedHtmlContent(cleanedHtml);
-  }, [htmlContent, theme, customStyles]); // Re-run when these dependencies change
-
-  // State to store cleaned HTML content
-  const [cleanedHtmlContent, setCleanedHtmlContent] = useState(htmlContent);
 
   return (
     <div className={`html-viewer ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
-      <style>{combinedStyles}</style>
-      <div dangerouslySetInnerHTML={{ __html: cleanedHtmlContent }} />
+      <style>{baseStyles}</style>
+      <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
     </div>
   );
 };

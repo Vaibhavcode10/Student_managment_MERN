@@ -65,7 +65,7 @@ const CrudStudents = () => {
     const handleAddStudent = async (e) => {
       e.preventDefault();
     
-      const requiredFields = ['name', 'email', 'password'];
+      const requiredFields = ['name', 'email', 'password', 'role', 'roll', 'marks', 'percentage', 'grade'];
     
       for (const field of requiredFields) {
         if (!newStudent?.[field]) {
