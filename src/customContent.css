@@ -1,0 +1,30 @@
+/* src/styles/customContent.css */
+
+.operator-card {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f9f9f9;
+  margin-bottom: 1rem;
+}
+
+.note {
+  background-color: #e0f7fa;
+  padding: 0.75rem;
+  border-left: 4px solid #00acc1;
+  margin: 1rem 0;
+}
+
+.warning {
+  background-color: #fff3cd;
+  padding: 0.75rem;
+  border-left: 4px solid #ffc107;
+  margin: 1rem 0;
+}
+
+.try-it {
+  background-color: #e8f5e9;
+  border-left: 4px solid #66bb6a;
+  padding: 1rem;
+  margin: 1rem 0;
+}

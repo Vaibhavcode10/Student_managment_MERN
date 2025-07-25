@@ -1,0 +1,58 @@
+/* src/index.css or App.css */
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff;
+  color: #100303;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: center;
+}
+
+h1, h2, h3, p {
+  margin: 1rem 0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+/* 🌀 Custom thin scrollbar styling */
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.3); /* semi-transparent grey */
+  border-radius: 10px;
+}
+
+.scrollbar-custom {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(100, 100, 100, 0.3) transparent;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html, #root {
+  height: 100%;
+  font-family: 'Segoe UI', sans-serif;
+}
+/* For modern browsers (Chrome, Edge, Safari) */
+.my-scrollable-div {
+  overflow: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.my-scrollable-div::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}

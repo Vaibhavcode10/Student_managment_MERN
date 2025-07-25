@@ -1,0 +1,45 @@
+.dashboard {
+    margin-top: 40px;
+    text-align: center;
+    font-family: "Segoe UI", sans-serif;
+  }
+  
+  .dashboard-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: #2b2b2b;
+  }
+  
+  .card-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  
+  .dashboard-card {
+    background: linear-gradient(to right, #e0eafc, #cfdef3);
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 0 15px rgba(84, 84, 255, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 25px rgba(84, 84, 255, 0.5);
+  }
+  
+  .dashboard-card .card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+  }
+  
+  .dashboard-card .card-text {
+    font-size: 1rem;
+    color: #4a4a4a;
+  }
+  

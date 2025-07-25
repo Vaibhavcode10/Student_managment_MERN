@@ -1,0 +1,141 @@
+/* src/components/Register.css */
+
+/* Container with a vibrant gradient background */
+.register-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #3c5788, rgb(109, 150, 221), #4623e1);
+    padding: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  /* Frosted glass effect for the card with layered shadows */
+  .register-card {
+    max-width: 420px;
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2), 0 0 20px rgba(107, 72, 255, 0.3);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+  }
+  
+  .register-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(107, 72, 255, 0.5);
+  }
+  
+  /* Title with a glowing effect */
+  .register-title {
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 25px;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(107, 72, 255, 0.7), 0 0 20px rgba(107, 72, 255, 0.4);
+  }
+  
+  /* Labels left-aligned */
+  .register-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+    text-align: left;
+    margin-bottom: 8px;
+    text-shadow: 0 0 5px rgba(107, 72, 255, 0.3);
+  }
+  
+  /* Inputs with neon glow and smooth transitions */
+  .register-input {
+    border-radius: 10px;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    transition: all 0.3s ease;
+  }
+  
+  .register-input:focus {
+    border-color: #6b48ff;
+    box-shadow: 0 0 12px rgba(107, 72, 255, 0.7), 0 0 24px rgba(107, 72, 255, 0.4);
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Placeholder text styling */
+  .register-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+  
+  /* Button with vibrant glow and hover effect */
+  .register-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #6b48ff, #00ddeb);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(107, 72, 255, 0.6), 0 0 25px rgba(0, 221, 235, 0.4);
+    transition: all 0.3s ease;
+  }
+  
+  .register-button:hover {
+    background: linear-gradient(90deg, #5433ff, #00b7c2);
+    box-shadow: 0 0 20px rgba(107, 72, 255, 0.8), 0 0 30px rgba(0, 221, 235, 0.6);
+    transform: translateY(-2px);
+  }
+  
+  /* Alert with subtle glow */
+  .register-alert {
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(107, 72, 255, 0.3);
+  }
+  
+  /* Footer text with link styling */
+  .register-footer {
+    margin-top: 20px;
+    font-size: 14px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .register-link {
+    color: #00ddeb;
+    font-weight: 500;
+    text-decoration: none;
+    text-shadow: 0 0 5px rgba(0, 221, 235, 0.5);
+  }
+  
+  .register-link:hover {
+    text-decoration: underline;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(0, 221, 235, 0.7);
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 576px) {
+    .register-card {
+      max-width: 90%;
+    }
+  
+    .register-title {
+      font-size: 24px;
+    }
+  
+    .register-button {
+      font-size: 14px;
+      padding: 10px;
+    }
+  }

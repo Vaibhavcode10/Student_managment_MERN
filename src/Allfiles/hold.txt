@@ -1,0 +1,61 @@
+// <Col md={6} style={{ display: role ? "block" : "none" }}>
+    //   <Card className="mb-4">
+    //     <Card.Header>
+    //       <h4 className="mb-0">🔐 Change Password</h4>
+    //     </Card.Header>
+    //     <Card.Body>
+    //       <Form onSubmit={handleSubmit}>
+    //         <Form.Group className="mb-3" controlId="oldPassword">
+    //           <Form.Label>Current Password</Form.Label>
+    //           <Form.Control
+    //             type="password"
+    //             name="oldPassword"
+    //             value={formData.oldPassword}
+    //             onChange={handleChange}
+    //             required
+    //           />
+    //         </Form.Group>
+
+    //         <Form.Group className="mb-3" controlId="newPassword">
+    //           <Form.Label>New Password</Form.Label>
+    //           <Form.Control
+    //             type="password"
+    //             name="newPassword"
+    //             value={formData.newPassword}
+    //             onChange={handleChange}
+    //             required
+    //           />
+    //         </Form.Group>
+
+    //         <Form.Group className="mb-3" controlId="confirmPassword">
+    //           <Form.Label>Confirm New Password</Form.Label>
+    //           <Form.Control
+    //             type="password"
+    //             name="confirmPassword"
+    //             value={formData.confirmPassword}
+    //             onChange={handleChange}
+    //             required
+    //           />
+    //         </Form.Group>
+
+    //         {message && (
+    //           <Alert variant={message.includes('successfully') ? 'success' : 'danger'}>
+    //             {message}
+    //           </Alert>
+    //         )}
+
+    //         <div className="d-grid gap-2">
+    //           <Button variant="primary" type="submit" disabled={isLoading}>
+    //             {isLoading ? 'Changing Password...' : 'Change Password'}
+    //           </Button>
+    //         </div>
+    //       </Form>
+
+    //       <div className="mt-3 text-center">
+    //         <Link to="/" className="btn btn-secondary">
+    //           Back to Dashboard
+    //         </Link>
+    //       </div>
+    //     </Card.Body>
+    //   </Card>
+    // </Col>
