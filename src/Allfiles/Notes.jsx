@@ -3,6 +3,7 @@ import { useNotes } from "../context/NotesProvider";
 import { useUser } from "../context/UserProvider";
 import HtmlViewer from "./HtmlViewer";
 import { useNavigate } from "react-router-dom";
+import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Notes() {
   const { theme } = useUser();
@@ -17,7 +18,25 @@ export default function Notes() {
   } = useNotes();
 
   const [activeUnit, setActiveUnit] = useState(null);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
+
+  // Check if mobile screen
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Auto-hide sidebar on mobile initially
+      if (mobile) {
+        setShowSidebar(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     fetchSubjects();
@@ -39,6 +58,14 @@ export default function Notes() {
   const handleUnitClick = (unitId) => {
     setActiveUnit(unitId);
     fetchNote(unitId);
+    // Auto-hide sidebar on mobile after selection
+    if (isMobile) {
+      setShowSidebar(false);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar);
   };
 
   const sortedUnits = [...units].sort(
@@ -58,39 +85,6 @@ export default function Notes() {
 
     return `Unit ${unitNum}: ${headingText}`;
   };
-
-  const testHtml = `
-  <h1 style="color: #007bff; text-align: center; text-shadow: 1px 1px 2px #aaa;">
-    Java Operators
-  </h1>
-
-  <div class="box" style="
-    border: 2px dashed #00bcd4;
-    background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
-    padding: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    font-size: 1.1rem;
-    color: #333;
-  ">
-    <strong style="color: #d32f2f;">Tip:</strong> Wrap expressions in <code style="background: #f9f9f9; padding: 0.2rem 0.4rem;">parentheses</code>!
-  </div>
-
-  <pre style="
-    background-color: #212121;
-    color: #f1f1f1;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-top: 1.5rem;
-    font-size: 1rem;
-    overflow-x: auto;
-  ">
-    <code>
-int a = (b + c) * d;
-float result = (x - y) / (z + 1);
-    </code>
-  </pre>
-`;
 
   const subjectNameMap = {
     "adv-python": "Advanced Python",
@@ -118,105 +112,186 @@ float result = (x - y) / (z + 1);
 
   return (
     <div
-      className={`flex flex-col md:flex-row h-screen font-sans overflow-y-hidden ${theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-gray-200"
-        }`}
+      className={`flex h-screen font-sans overflow-hidden relative ${
+        theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-gray-200"
+      }`}
     >
+      {/* Mobile Overlay */}
+      {isMobile && showSidebar && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div
-        className={`w-full my-scrollable-div md:w-[280px] p-4 border-b md:border-b-0 md:border-r shadow-sm flex flex-col  ${theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
-          }`}
+        className={`${
+          isMobile ? 'fixed left-0 top-0 z-50' : 'relative'
+        } h-full transition-all duration-300 ease-in-out ${
+          showSidebar
+            ? isMobile
+              ? 'w-[85vw] max-w-[320px]'
+              : 'w-[280px]'
+            : isMobile
+              ? '-translate-x-full w-[85vw] max-w-[320px]'
+              : 'w-0'
+        } ${
+          theme === "light" 
+            ? "bg-white border-gray-200" 
+            : "bg-[#1e1e1e] border-gray-700"
+        } border-r shadow-lg overflow-hidden`}
       >
-        <div className="relative mb-4">
-          <div
-            className="p-[2px] rounded-md bg-gradient-to-r from-blue-800 via-indigo-700 to-purple-800 animate-borderFlash shadow-[0_0_20px_4px_rgba(99,102,241,0.5)]"
-            style={{
-              backgroundSize: '300% 300%',
-            }}
-          >
-            <select
-              onChange={(e) => {
-                fetchUnits(e.target.value);
-                setActiveUnit(null);
-                setSaveStatus(null);
-              }}
-              value={subject}
-              className={`w-full   my-scrollable-div p-2.5 rounded-md  p-3.5  text-[1.2] appearance-none focus:outline-none transition-all duration-300 ${theme === "light"
-                  ? "bg-white border-gray-300 text-gray-900"
-                  : "bg-[#1e1e1e] border-[#333] text-white"
+        <div className="h-full flex flex-col">
+          {/* Sidebar Header */}
+          <div className="">
+          
+            {isMobile && (
+              <button
+                onClick={() => setShowSidebar(false)}
+                className={`p-2 rounded-md transition-colors ${
+                  theme === "light"
+                    ? "text-gray-600 hover:bg-gray-100"
+                    : "text-gray-300 hover:bg-gray-700"
                 }`}
-            >
-              <option value="" disabled hidden>
-                -- Select Subject --
-              </option>
-              {subjects.map((subj, idx) => (
-                <option key={idx} value={subj} className="text-base text-black dark:text-white">
-                  {subjectNameMap[subj] || subj}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto my-scrollable-div">
-          <ul className="list-none p-0 m-0 text-left">
-            {sortedUnits.map((unit, idx) => {
-              const unitId = unit.unit || `unit-${idx}`;
-              const isActive = activeUnit === unitId;
-
-              return (
-                <li
-                  key={unitId}
-                  onClick={() => handleUnitClick(unitId)}
-                  className={`cursor-pointer mb-3 p-3.5 font-semibold text-[1.1rem] rounded-md border text-sm transition-colors ${isActive
-                    ? theme === "light"
-                      ? "bg-blue-100 border-blue-300"
-                      : "bg-gray-700 border-gray-600"
-                    : theme === "light"
-                      ? "bg-gray-50 border-gray-300"
-                      : "bg-gray-800 border-gray-700"
-                    }`}
-                >
-                  {getHeadingDisplay(unit)}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-
-      {/* Main Viewer */}
-      <div
-        className="flex-1  md:px-0 overflow-y-auto  my-scrollable-div justify-center"
-        style={{
-          maxHeight: "100%", // Adjusted to use full height
-          backgroundColor: theme === "light" ? "#fdfdfd" : "#1e1e1e",
-          width: "100%", // Ensure it takes full available width
-        }}
-      >
-        <div
-          className="w-full"
-          style={{
-            width: "100%", // Remove fixed maxWidth to adapt to viewport
-            overflowX: "hidden", // Prevent horizontal scroll
-          }}
-        >
-          <div
-            className="prose max-w-none text-left"
-            style={{
-              overflowWrap: "break-word",
-              wordBreak: "break-word",
-              width: "100%", // Ensure content fills the container
-              // Add some padding for readability
-            }}
-          >
-            {note?.content ? (
-              <HtmlViewer htmlContent={note.content} />
-            ) : (
-              <div className="text-gray-400 italic">Select a unit to view the notes...</div>
+              >
+                <X className="w-5 h-5" />
+              </button>
             )}
           </div>
+
+          {/* Subject Selector */}
+          <div className="p-3">
+            <div className="relative">
+              <div
+                className="p-[2px] rounded-md bg-gradient-to-r from-blue-800 via-indigo-700 to-purple-800 animate-borderFlash shadow-[0_0_20px_4px_rgba(99,102,241,0.5)]"
+                style={{
+                  backgroundSize: '300% 300%',
+                }}
+              >
+                <select
+                  onChange={(e) => {
+                    fetchUnits(e.target.value);
+                    setActiveUnit(null);
+                  }}
+                  value={subject}
+                  className={`w-full p-3  my-scrollable-div rounded-md text-sm appearance-none focus:outline-none transition-all duration-300 ${
+                    theme === "light"
+                      ? "bg-white text-gray-900"
+                      : "bg-[#1e1e1e] text-white"
+                  }`}
+                >
+                  <option value="" disabled hidden>
+                    -- Select Subject --
+                  </option>
+                  {subjects.map((subj, idx) => (
+                    <option key={idx} value={subj} className="text-sm">
+                      {subjectNameMap[subj] || subj}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Units List */}
+       {/* Units List */}
+<div className="flex-1 overflow-y-auto  max-h-[80vh] my-scrollable-div">
+  <ul className="space-y-2 p-2 text-left">
+    {sortedUnits.map((unit, idx) => {
+      const unitId = unit.unit || `unit-${idx}`;
+      const isActive = activeUnit === unitId;
+
+      return (
+        <li
+          key={unitId}
+          onClick={() => handleUnitClick(unitId)}
+          className={`cursor-pointer px-2 py-3 rounded-xl border text-sm font-medium transition-all duration-200 shadow-sm 
+            ${
+              isActive
+                ? theme === "light"
+                  ? "bg-blue-100 border-blue-300 text-blue-900"
+                  : "bg-blue-900 border-blue-600 text-blue-100"
+                : theme === "light"
+                  ? "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+                  : "bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-200"
+            }`}
+        >
+          {getHeadingDisplay(unit)}
+        </li>
+      );
+    })}
+  </ul>
+</div>
+
         </div>
       </div>
+
+      {/* Main Content Area */}
+    <div className="flex-1 flex flex-col overflow-hidden relative   ">
+  {/* Floating Sidebar Toggle Button */}
+  <button
+    onClick={toggleSidebar}
+    className={`absolute top-4 left-4 z-10 p-2 rounded-md shadow-md transition-colors ${
+      theme === "light"
+        ? "bg-white text-gray-600 hover:bg-gray-100"
+        : "bg-[#2b2b2b] text-gray-300 hover:bg-gray-700"
+    }`}
+    title={showSidebar ? "Hide Sidebar" : "Show Sidebar"}
+  >
+    {showSidebar ? (
+      isMobile ? <X className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />
+    ) : (
+      isMobile ? <Menu className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />
+    )}
+  </button>
+
+  {/* Notes Content */}
+  <div
+    className="flex-1 overflow-y-hidden "
+    style={{
+      backgroundColor: theme === "light" ? "#fdfdfd" : "#1e1e1e",
+    }}
+  >
+    <div className="max-w-none mx-auto">
+      <div
+        className="prose max-w-none text-left "
+        style={{
+          overflowWrap: "break-word",
+          wordBreak: "break-word",
+          width: "100%",
+        }}
+      >
+        {note?.content ? (
+          <HtmlViewer htmlContent={note.content} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <div className="text-gray-400 italic text-lg mb-4">
+              {!subject
+                ? "Please select a subject to get started"
+                : units.length === 0
+                ? "No units available for this subject"
+                : "Select a unit to view the notes..."}
+            </div>
+            {!showSidebar && (
+              <button
+                onClick={() => setShowSidebar(true)}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  theme === "light"
+                    ? "bg-blue-500 text-white hover:bg-blue-600"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {isMobile ? "Open Menu" : "Show Sidebar"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
+
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useUser } from "./context/UserProvider";
 import ProtectedRoute from "./ProtectedRoute";
 import Dashboard from "./Dashboard";
-
+import TryModule from "./Allfiles/TryModule";
 // Pages
 import Login from "./Login";
 import Register from "./Register";
@@ -55,6 +55,8 @@ const AppRoutes = () => {
         <Route path="test" element={<Mytest />} />
          <Route path="notes" element={<Notes/>} />
          <Route path="editnotes" element={<Edinotes/>} />
+            <Route path="testapi" element={<TryModule/>} />
+         
       </Route>
 
       {/* Fallback */}

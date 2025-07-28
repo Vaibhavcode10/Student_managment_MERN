@@ -69,7 +69,7 @@ export default function Navbar() {
                
             </div>
           )}
-
+      
           {location.pathname === "/dashboard/notes" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <h1
@@ -77,6 +77,17 @@ export default function Navbar() {
                   }`}
               >
                 Notes
+              </h1>
+
+            </div>
+          )}
+              {location.pathname === "/dashboard/updatedetails" && (
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <h1
+                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
+                  }`}
+              >
+               Student Profile
               </h1>
 
             </div>

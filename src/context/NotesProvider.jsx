@@ -9,7 +9,7 @@ export const NotesProvider = ({ children }) => {
   const [subject, setSubject] = useState("");
   const [units, setUnits] = useState([]);
   const [note, setNote] = useState(null);
-
+  const [trydata,settrydata]=useState([]);
   const BASE_URL = "https://api-e5q6islzdq-uc.a.run.app/api";
 
   // 🧠 Convert hex to readable string
@@ -111,20 +111,15 @@ export const NotesProvider = ({ children }) => {
       }
 
       const rawNote = data.data;
-
-      // ✂️ Extract only body content if full HTML exists
-      if (rawNote?.content?.includes("<html")) {
-        const bodyMatch = rawNote.content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        if (bodyMatch) rawNote.content = bodyMatch[1];
-      }
-
-      // 🔓 Decode hexadecimal code block
+      
+     
+     
       if (rawNote?.code) {
         rawNote.code = hexToString(rawNote.code);
       }
 
       setNote(rawNote);
-      console.log("📝 Note fetched:", rawNote);
+     
     } catch (err) {
       console.error("❌ Error fetching note:", err);
       setNote(null);
@@ -154,7 +149,36 @@ export const NotesProvider = ({ children }) => {
       return { success: false, error: err.message };
     }
   };
+
+  //trydata will delet later 
   
+const testFetchNote = async () => {
+  const subject = "java";
+  const unitHeading = "1";
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
+    );
+    const data = await res.json();
+
+    if (!data?.data) {
+      console.warn("⚠️ No note data found:", data);
+      // setNote(null); // ← Only if you're using React state
+      return;
+    }
+
+    const rawNote = data.data;
+   settrydata(rawNote)
+    // If you're testing, maybe show this in console or UI
+    console.log("✅ Raw Note from API:", rawNote);
+ 
+ 
+  } catch (err) {
+    console.error("❌ Error fetching note:", err);
+    // setNote(null); // optional
+  }
+};
 
 
   return (
@@ -164,8 +188,10 @@ export const NotesProvider = ({ children }) => {
         subject,
         units,
         note,
+        trydata,
+        testFetchNote,
         fetchSubjects,
-        fetchUnits,
+        fetchUnits, 
         fetchNote,
         updateNote
       }}
