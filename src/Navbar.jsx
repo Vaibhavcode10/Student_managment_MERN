@@ -92,6 +92,17 @@ export default function Navbar() {
 
             </div>
           )}
+           {location.pathname === "/dashboard/roles" && (
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <h1
+                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
+                  }`}
+              >
+               Manage Role
+              </h1>
+
+            </div>
+          )}
           {/* Right Side - Dropdown */}
           <div className="relative">
             <button
