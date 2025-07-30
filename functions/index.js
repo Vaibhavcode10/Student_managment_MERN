@@ -8,7 +8,13 @@ admin.initializeApp();
 const db = admin.firestore();
 const tanushree = express();
 
-tanushree.use(cors({origin: true}));
+tanushree.use(
+  cors({
+    origin: 'https://chedotech-85bbf.web.app',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+  })
+);
 tanushree.use(express.json());
 
 function computeResults(student) {
@@ -16,6 +22,11 @@ function computeResults(student) {
   const per = total / 3;
   const grade = per >= 90 ? "A" : per >= 75 ? "B" : per >= 60 ? "C" : "D";
   return {...student, total, per, grade};
+}
+//random id
+function generateRandomId(length = 12) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
 // ✅ Add student
@@ -799,6 +810,76 @@ tanushree.post("/api/ask-ai", async (req, res) => {
   }
 });
 
+
+ 
+// POST /api/dynamicmcq/create
+tanushree.post('/create', async (req, res) => {
+  try {
+    const { subject, testName, mcqData } = req.body;
+
+    if (!subject || !testName || !mcqData) {
+      return res.status(400).json({ error: 'Missing required fields: subject, testName, mcqData' });
+    }
+
+    const docId = generateRandomId();
+
+    const testRef = db
+      .collection('DynamicMcq')
+      .doc(subject)
+      .collection('tests')
+      .doc(docId);
+
+    await testRef.set({
+      testName: testName,
+      data: mcqData
+    });
+
+    return res.status(201).json({
+      status: 'success',
+      docId: docId,
+      link: `https://chedotech-85bbf.web.app/dashboard/customquiz/${subject}/${docId}`
+    });
+  } catch (err) {
+    console.error('Error creating test:', err);
+    return res.status(500).json({ error: 'Server error while creating test' });
+  }
+});
+
+//get mcq dynamic
+tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
+  try {
+    const { subject, docId } = req.params;
+
+    if (!subject || !docId) {
+      return res.status(400).json({ error: 'Missing subject or docId in params' });
+    }
+
+    const testRef = db
+      .collection('DynamicMcq')
+      .doc(subject)
+      .collection('tests')
+      .doc(docId);
+
+    const doc = await testRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    const data = doc.data();
+
+    return res.status(200).json({
+      testName: data.testName,
+      mcqData: data.data,
+      docId: docId,
+      subject: subject
+    });
+
+  } catch (err) {
+    console.error('Error fetching test:', err);
+    return res.status(500).json({ error: 'Server error while fetching test' });
+  }
+});
 
 // ✅ Test route
 tanushree.get("/hello", (req, res) => {

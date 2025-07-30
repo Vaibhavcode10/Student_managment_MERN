@@ -18,7 +18,7 @@ import InterviewPrep from "./Allfiles/InterviewPrep";
 import Cards from "./cards"; // 👈 import this for index route
 import ComplaintCard from "./Allfiles/ComplaintCard";
 import Notes from "./Allfiles/Notes";
-
+import CustomQuizPage from "./Admin_section/CustomQuizPage";
 const AppRoutes = () => {
   const { user } = useUser();
 
@@ -53,10 +53,13 @@ const AppRoutes = () => {
         <Route path="interview" element={<InterviewPrep />} />
         <Route path="mcq" element={<Mymcq />} />
         <Route path="test" element={<Mytest />} />
-         <Route path="notes" element={<Notes/>} />
-         <Route path="editnotes" element={<Edinotes/>} />
-            <Route path="testapi" element={<TryModule/>} />
-         
+        <Route path="notes" element={<Notes />} />
+        <Route path="editnotes" element={<Edinotes />} />
+        <Route path="testapi" element={<TryModule />} />
+<Route path="customquiz/:subject/:docId" element={<CustomQuizPage />} />
+
+        
+
       </Route>
 
       {/* Fallback */}
