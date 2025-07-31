@@ -170,6 +170,15 @@ export default function Navbar() {
                       Edit Notes
                     </button>
                   )}
+                    {role === "superadmin" && (
+                    <button
+                      onClick={() => navigate("/dashboard/customquiz")}
+                      className={`w-full text-left px-4 py-2 ${theme === "dark" ? "text-green-300" : "text-green-700"
+                        }`}
+                    >
+                      Create test
+                    </button>
+                  )}
 
                   {/* Logout */}
                   <button

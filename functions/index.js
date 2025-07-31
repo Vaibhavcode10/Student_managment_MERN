@@ -8,13 +8,13 @@ admin.initializeApp();
 const db = admin.firestore();
 const tanushree = express();
 
-tanushree.use(
-  cors({
-    origin: 'https://chedotech-85bbf.web.app',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
-  })
-);
+
+tanushree.use(cors({
+  origin: ["http://localhost:5173", "https://chedotech-85bbf.web.app"],
+  methods: ["GET", "POST", "OPTIONS"],
+  credentials: true
+}));
+
 tanushree.use(express.json());
 
 function computeResults(student) {
@@ -880,6 +880,64 @@ tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
     return res.status(500).json({ error: 'Server error while fetching test' });
   }
 });
+
+const getAllTests = async (req, res) => {
+  try {
+    const allTests = {};
+    const subjectSnapshot = await db.collection("DynamicMcq").listDocuments();
+
+    for (const subjectDoc of subjectSnapshot) {
+      const subject = subjectDoc.id;
+      const testsRef = db.collection("DynamicMcq").doc(subject).collection("tests");
+      const testsSnapshot = await testsRef.get();
+
+      const subjectTests = [];
+
+      testsSnapshot.forEach(doc => {
+        subjectTests.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      allTests[subject] = subjectTests;
+    }
+
+    res.status(200).json(allTests);
+  } catch (err) {
+    console.error("Error fetching all tests:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+// ✅ Fetch all tests across all subjects
+tanushree.get("/alltests", async (req, res) => {
+  try {
+    const allTests = {};
+    const subjectDocs = await db.collection("DynamicMcq").listDocuments();
+
+    for (const subjectDoc of subjectDocs) {
+      const subjectName = subjectDoc.id;
+      const testsRef = db.collection("DynamicMcq").doc(subjectName).collection("tests");
+      const testDocs = await testsRef.get();
+
+      const tests = [];
+      testDocs.forEach(doc => {
+        tests.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      allTests[subjectName] = tests;
+    }
+
+    res.status(200).json(allTests);
+  } catch (err) {
+    console.error("🔥 Error in /alltests:", err.message);
+    res.status(500).json({ error: "Something went wrong while fetching tests." });
+  }
+});
+
 
 // ✅ Test route
 tanushree.get("/hello", (req, res) => {

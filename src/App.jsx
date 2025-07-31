@@ -19,6 +19,7 @@ import Cards from "./cards"; // 👈 import this for index route
 import ComplaintCard from "./Allfiles/ComplaintCard";
 import Notes from "./Allfiles/Notes";
 import CustomQuizPage from "./Admin_section/CustomQuizPage";
+import CreateMcqTestPage from "./Admin_section/CreateMcqTestPage";
 const AppRoutes = () => {
   const { user } = useUser();
 
@@ -56,6 +57,7 @@ const AppRoutes = () => {
         <Route path="notes" element={<Notes />} />
         <Route path="editnotes" element={<Edinotes />} />
         <Route path="testapi" element={<TryModule />} />
+        <Route path="customquiz" element={<CreateMcqTestPage />} />
 <Route path="customquiz/:subject/:docId" element={<CustomQuizPage />} />
 
         
