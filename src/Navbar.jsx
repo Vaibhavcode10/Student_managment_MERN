@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from 'react-router-dom';
 import { useNavigate } from "react-router-dom";
 import { useUser } from "./context/UserProvider"; // make sure this exists
 export default function Navbar() {
@@ -22,7 +23,7 @@ export default function Navbar() {
   };
 
 
-
+const {subject,docId}=useParams();
   const navbarBg =
     theme === "dark"
       ? "bg-black/10 border-gray-800" // Lighter black with 80% opacity, paired with a dark border
@@ -103,6 +104,20 @@ export default function Navbar() {
 
             </div>
           )}
+        {subject && docId && (
+  <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+    <h1
+      className={`text-2xl font-bold px-4 py-2 rounded ${
+        theme === "light"
+          ? "bg-white text-black  "
+          : "bg-[#1e1e1e] text-white "
+      }`}
+    >
+      {subject.charAt(0).toUpperCase() + subject.slice(1)} Test
+    </h1>
+  </div>
+)}
+
           {/* Right Side - Dropdown */}
           <div className="relative">
             <button
