@@ -956,6 +956,41 @@ tanushree.get("/alltests", async (req, res) => {
   }
 });
 
+ 
+tanushree.get('/api/all-tests', async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const subjectDocs = await db.collection('DynamicMcq').listDocuments();
+
+    const allTests = [];
+
+    for (const subjectRef of subjectDocs) {
+      const subjectName = subjectRef.id;
+
+      const testsSnapshot = await subjectRef.collection('tests').get();
+
+      testsSnapshot.forEach(testDoc => {
+        const testData = testDoc.data();
+
+        allTests.push({
+          subject: subjectName,
+          testId: testDoc.id,
+          testName: testData.testName || "Untitled Test",
+          // Add more fields if needed, e.g.:
+          // totalQuestions: testData.questions?.length || 0,
+          // createdAt: testData.createdAt || null
+        });
+      });
+    }
+
+    res.json(allTests);
+  } catch (err) {
+    console.error("🔥 Error fetching all tests:", err);
+    res.status(500).json({ error: "Failed to fetch tests" });
+  }
+});
+
+ 
 
 // ✅ Test route
 tanushree.get("/hello", (req, res) => {

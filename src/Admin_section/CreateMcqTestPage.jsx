@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 // Helper function to convert string to hex
@@ -8,20 +8,33 @@ const stringToHex = (str) =>
     .map((c) => c.charCodeAt(0).toString(16).padStart(2, "0"))
     .join("");
 
-// Optional: check if string looks like it's already in hex (e.g., all chars are hex digits)
+// Check if string is already in hex
 const isHex = (str) => /^[0-9a-fA-F]+$/.test(str) && str.length % 2 === 0;
 
 const CreateMcqTestPage = () => {
-  const [tests, setTests] = useState([
-    { testName: "Java Summer Test", createdAt: "2025-07-30", docId: "123abc" },
-    { testName: "React Test", createdAt: "2025-07-30", docId: "456def" },
-  ]);
+  const [tests, setTests] = useState([]);
+  const [loadingTests, setLoadingTests] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [testName, setTestName] = useState("");
   const [subject, setSubject] = useState("java");
   const [jsonInput, setJsonInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [createdLink, setCreatedLink] = useState(null);
+
+  useEffect(() => {
+    const fetchTests = async () => {
+      try {
+        const res = await axios.get("https://api-e5q6islzdq-uc.a.run.app/api/all-tests");
+        setTests(res.data);
+      } catch (err) {
+        console.error("Failed to fetch tests:", err);
+      } finally {
+        setLoadingTests(false);
+      }
+    };
+
+    fetchTests();
+  }, []);
 
   const handleCreateTest = async () => {
     setLoading(true);
@@ -43,7 +56,7 @@ const CreateMcqTestPage = () => {
           typeof q.question !== "string" ||
           !Array.isArray(q.options) ||
           q.options.length !== 4 ||
-          typeof q.answer !== "string" ||   // ✅ must exist
+          typeof q.answer !== "string" ||
           typeof q.id !== "string" ||
           typeof q.subtopic !== "string"
         ) {
@@ -60,8 +73,6 @@ const CreateMcqTestPage = () => {
           answer: isHex(q.answer) ? q.answer : stringToHex(q.answer),
         };
       });
-
-
 
       const response = await axios.post(
         "https://api-e5q6islzdq-uc.a.run.app/create",
@@ -105,20 +116,27 @@ const CreateMcqTestPage = () => {
           <p className="break-all text-blue-700">{createdLink}</p>
         </div>
       )}
+
       {!showForm && (
         <div className="grid grid-cols-1 gap-4">
-          {tests.map((test, i) => (
-            <div key={i} className="border p-4 rounded-md shadow">
-              <h2 className="text-lg font-semibold">{test.testName}</h2>
-              <p className="text-sm text-gray-600">Created: {test.createdAt}</p>
-              <a
-                href={`/dashboard/customquiz/${subject}/${test.docId}`}
-                className="text-blue-500 hover:underline"
-              >
-                View Test
-              </a>
-            </div>
-          ))}
+          {loadingTests ? (
+            <p className="text-gray-500">Loading tests...</p>
+          ) : tests.length === 0 ? (
+            <p className="text-gray-500">No tests available.</p>
+          ) : (
+            tests.map((test, i) => (
+              <div key={i} className="border p-4 rounded-md shadow">
+                <h2 className="text-lg font-semibold">{test.testName}</h2>
+                <p className="text-sm text-gray-600">Subject: {test.subject}</p>
+                <a
+                  href={`/dashboard/customquiz/${test.subject}/${test.testId}`}
+                  className="text-blue-500 hover:underline"
+                >
+                  View Test
+                </a>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -152,8 +170,6 @@ const CreateMcqTestPage = () => {
           >
             {loading ? "Creating..." : "Create Test"}
           </button>
-
-
         </div>
       )}
     </div>
