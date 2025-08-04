@@ -124,18 +124,24 @@ const CreateMcqTestPage = () => {
           ) : tests.length === 0 ? (
             <p className="text-gray-500">No tests available.</p>
           ) : (
-            tests.map((test, i) => (
-              <div key={i} className="border p-4 rounded-md shadow">
-                <h2 className="text-lg font-semibold">{test.testName}</h2>
-                <p className="text-sm text-gray-600">Subject: {test.subject}</p>
-                <a
-                  href={`/dashboard/customquiz/${test.subject}/${test.testId}`}
-                  className="text-blue-500 hover:underline"
-                >
-                  View Test
-                </a>
-              </div>
-            ))
+           <div className="p-6">
+  <h1 className="text-2xl font-bold mb-6">Available Tests</h1>
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    {tests.map((test, i) => (
+      <div key={i} className="border p-4 rounded-2xl shadow-md bg-white hover:shadow-xl transition-shadow">
+        <h2 className="text-xl font-semibold text-purple-700">{test.testName}</h2>
+        <p className="text-sm text-gray-600 mt-1">Subject: <span className="font-medium">{test.subject}</span></p>
+        <a
+          href={`/dashboard/customquiz/${test.subject}/${test.testId}`}
+          className="inline-block mt-4 text-sm text-white bg-purple-600 px-4 py-2 rounded hover:bg-purple-700 transition"
+        >
+          View Test
+        </a>
+      </div>
+    ))}
+  </div>
+</div>
+
           )}
         </div>
       )}
