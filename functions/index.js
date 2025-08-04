@@ -817,8 +817,16 @@ tanushree.post('/create', async (req, res) => {
   try {
     const { subject, testName, mcqData } = req.body;
 
-    if (!subject || !testName || !mcqData) {
-      return res.status(400).json({ error: 'Missing required fields: subject, testName, mcqData' });
+    if (!subject || !testName || !mcqData || !Array.isArray(mcqData)) {
+      return res.status(400).json({ error: 'Missing or invalid subject, testName, or mcqData' });
+    }
+
+    // Check all MCQs have required fields
+    for (let i = 0; i < mcqData.length; i++) {
+      const q = mcqData[i];
+      if (!q.id || !q.subtopic || !q.question || !q.options || !q.answer) {
+        return res.status(400).json({ error: `Missing fields in MCQ at index ${i}` });
+      }
     }
 
     const docId = generateRandomId();
@@ -830,23 +838,24 @@ tanushree.post('/create', async (req, res) => {
       .doc(docId);
 
     await testRef.set({
-      testName: testName,
-      data: mcqData
+      testName,
+      data: mcqData // direct save as user provided id and fields
     });
 
     return res.status(201).json({
       status: 'success',
-      docId: docId,
+      docId,
       link: `https://chedotech-85bbf.web.app/dashboard/customquiz/${subject}/${docId}`
     });
+
   } catch (err) {
     console.error('Error creating test:', err);
     return res.status(500).json({ error: 'Server error while creating test' });
   }
 });
 
-//get mcq dynamic
-tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
+//get
+ tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
   try {
     const { subject, docId } = req.params;
 
@@ -867,12 +876,19 @@ tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
     }
 
     const data = doc.data();
+    const mcqData = data.data || [];
+
+    // You can optionally attach subject field to each MCQ (if needed on frontend)
+    const enrichedMcqData = mcqData.map(mcq => ({
+      ...mcq,
+      subject
+    }));
 
     return res.status(200).json({
       testName: data.testName,
-      mcqData: data.data,
-      docId: docId,
-      subject: subject
+      docId,
+      subject,
+      mcqData: enrichedMcqData
     });
 
   } catch (err) {
@@ -880,6 +896,8 @@ tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
     return res.status(500).json({ error: 'Server error while fetching test' });
   }
 });
+
+
 
 const getAllTests = async (req, res) => {
   try {

@@ -82,7 +82,7 @@ export default function Dashboard() {
           )}
 
           {/* Main Body */}
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full my-scrollable-div">
             {isMainDashboard ? <Cards /> : <Outlet />}
           </div>
         </div>
