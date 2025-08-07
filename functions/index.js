@@ -3,11 +3,29 @@ const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 const path = require("path");
+const axios = require("axios");
 
 admin.initializeApp();
 const db = admin.firestore();
 const tanushree = express();
 
+// ✅ CACHING LAYER - Add this to reduce repeated reads
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function setCache(key, value) {
+  cache.set(key, { value, timestamp: Date.now() });
+}
+
+function getCache(key) {
+  const item = cache.get(key);
+  if (!item) return null;
+  if (Date.now() - item.timestamp > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return item.value;
+}
 
 tanushree.use(cors({
   origin: ["http://localhost:5173", "https://chedotech-85bbf.web.app"],
@@ -21,8 +39,9 @@ function computeResults(student) {
   const total = student.phy + student.chem + student.math;
   const per = total / 3;
   const grade = per >= 90 ? "A" : per >= 75 ? "B" : per >= 60 ? "C" : "D";
-  return {...student, total, per, grade};
+  return { ...student, total, per, grade };
 }
+
 //random id
 function generateRandomId(length = 12) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -42,11 +61,31 @@ tanushree.post("/student", async (req, res) => {
   }
 });
 
-// ✅ Get all students
+// ✅ OPTIMIZED: Get all students with pagination and caching
 tanushree.get("/students", async (req, res) => {
   try {
-    const snapshot = await db.collection("studentsData").get();
+    const { limit = 50, startAfter } = req.query;
+    const cacheKey = `students_${limit}_${startAfter || 'first'}`;
+    
+    // Check cache first
+    const cached = getCache(cacheKey);
+    if (cached) {
+      return res.send(cached);
+    }
+
+    let query = db.collection("studentsData").limit(parseInt(limit));
+    
+    if (startAfter) {
+      const startDoc = await db.collection("studentsData").doc(startAfter).get();
+      query = query.startAfter(startDoc);
+    }
+    
+    const snapshot = await query.get();
     const students = snapshot.docs.map((doc) => doc.data());
+    
+    // Cache the result
+    setCache(cacheKey, students);
+    
     res.send(students);
   } catch (err) {
     console.error(err);
@@ -80,7 +119,6 @@ tanushree.put("/student/:email", async (req, res) => {
   }
 });
 
-
 // ✅ Delete student
 tanushree.delete("/student/:email", async (req, res) => {
   try {
@@ -95,7 +133,6 @@ tanushree.delete("/student/:email", async (req, res) => {
     res.status(500).send({ error: "Error deleting student" });
   }
 });
-
 
 // ✅ Register user
 tanushree.post("/register", async (req, res) => {
@@ -126,37 +163,67 @@ tanushree.post("/register", async (req, res) => {
   }
 });
 
-
 // ✅ Login: Check user auth
 tanushree.post("/login", async (req, res) => {
   try {
-    const {email, password} = req.body;
+    const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).send({error: "Email and password are required"});
+      return res.status(400).send({ error: "Email and password are required" });
     }
 
     const docRef = db.collection("studentsData").doc(email);
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      return res.status(404).send({success: false, message: "User not found"});
+      return res.status(404).send({ success: false, message: "User not found" });
     }
 
     const userData = doc.data();
 
     if (userData.password === password) {
-      res.send({success: true, message: "Authentication successful"});
+      res.send({ success: true, message: "Authentication successful" });
     } else {
-      res.send({success: false, message: "Invalid password"});
+      res.send({ success: false, message: "Invalid password" });
     }
   } catch (err) {
     console.error("Error during login:", err);
-    res.status(500).send({success: false, error: "Login failed"});
+    res.status(500).send({ success: false, error: "Login failed" });
   }
 });
 
-// ✅ Promote to admin
+// ✅ OPTIMIZED: Cache superadmin verification
+let superAdminCache = null;
+let superAdminCacheTime = 0;
+
+async function verifySuperAdmin(superEmail, superPassword) {
+  // Cache superadmin verification for 10 minutes
+  if (superAdminCache && (Date.now() - superAdminCacheTime) < 600000) {
+    if (superAdminCache.email === superEmail && superAdminCache.password === superPassword) {
+      return { success: true, data: superAdminCache };
+    }
+  }
+
+  const superDoc = await db.collection("studentsData").doc(superEmail).get();
+  
+  if (!superDoc.exists) {
+    return { success: false, error: "Superadmin not found" };
+  }
+
+  const superData = superDoc.data();
+
+  if (superData.password !== superPassword || superData.Role !== "superadmin") {
+    return { success: false, error: "Invalid superadmin credentials" };
+  }
+
+  // Cache the verification
+  superAdminCache = { email: superEmail, password: superPassword, ...superData };
+  superAdminCacheTime = Date.now();
+
+  return { success: true, data: superData };
+}
+
+// ✅ OPTIMIZED: Promote to admin - Use direct document access
 tanushree.put("/make-admin", async (req, res) => {
   const { superEmail, superPassword, email } = req.body;
 
@@ -168,41 +235,26 @@ tanushree.put("/make-admin", async (req, res) => {
   }
 
   try {
-    // 🔐 Step 1: Authenticate superadmin using document ID (superEmail)
-    const superDoc = await db.collection("studentsData").doc(superEmail).get();
-
-    if (!superDoc.exists) {
-      return res.status(404).json({
-        message: "Superadmin not found",
-        error: "No superadmin document found",
-      });
-    }
-
-    const superData = superDoc.data();
-
-    if (superData.password !== superPassword || superData.Role !== "superadmin") {
+    // Use cached superadmin verification
+    const verification = await verifySuperAdmin(superEmail, superPassword);
+    if (!verification.success) {
       return res.status(403).json({
         message: "Invalid superadmin credentials",
-        error: "Password or role mismatch",
+        error: verification.error,
       });
     }
 
-    // 👤 Step 2: Find the student to promote
-    const studentSnapshot = await db
-      .collection("studentsData")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
+    // ✅ FIXED: Direct document access instead of expensive query
+    const studentDoc = await db.collection("studentsData").doc(email).get();
 
-    if (studentSnapshot.empty) {
+    if (!studentDoc.exists) {
       return res.status(404).json({
         message: "Target user not found",
         error: "No user found with the given email",
       });
     }
 
-    const studentDoc = studentSnapshot.docs[0];
-    await db.collection("studentsData").doc(studentDoc.id).update({
+    await db.collection("studentsData").doc(email).update({
       Role: "admin",
     });
 
@@ -218,7 +270,7 @@ tanushree.put("/make-admin", async (req, res) => {
   }
 });
 
-// ✅ Demote to student
+// ✅ OPTIMIZED: Demote to student - Use direct document access
 tanushree.put("/make-student", async (req, res) => {
   const { superEmail, superPassword, email } = req.body;
 
@@ -230,41 +282,26 @@ tanushree.put("/make-student", async (req, res) => {
   }
 
   try {
-    // 🔐 Step 1: Authenticate superadmin
-    const superDoc = await db.collection("studentsData").doc(superEmail).get();
-
-    if (!superDoc.exists) {
-      return res.status(404).json({
-        message: "Superadmin not found",
-        error: "No superadmin document found",
-      });
-    }
-
-    const superData = superDoc.data();
-
-    if (superData.password !== superPassword || superData.Role !== "superadmin") {
+    // Use cached superadmin verification
+    const verification = await verifySuperAdmin(superEmail, superPassword);
+    if (!verification.success) {
       return res.status(403).json({
         message: "Invalid superadmin credentials",
-        error: "Password or role mismatch",
+        error: verification.error,
       });
     }
 
-    // 👤 Step 2: Find the admin to demote
-    const studentSnapshot = await db
-      .collection("studentsData")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
+    // ✅ FIXED: Direct document access instead of expensive query
+    const studentDoc = await db.collection("studentsData").doc(email).get();
 
-    if (studentSnapshot.empty) {
+    if (!studentDoc.exists) {
       return res.status(404).json({
         message: "Target user not found",
         error: "No user found with the given email",
       });
     }
 
-    const studentDoc = studentSnapshot.docs[0];
-    await db.collection("studentsData").doc(studentDoc.id).update({
+    await db.collection("studentsData").doc(email).update({
       Role: "student",
     });
 
@@ -280,17 +317,7 @@ tanushree.put("/make-student", async (req, res) => {
   }
 });
 
-// ✅ Get all registered users (Optional)
-tanushree.get("/users", async (req, res) => {
-  try {
-    const snapshot = await db.collection("usersLogin").get();
-    const users = snapshot.docs.map((doc) => doc.data());
-    res.send(users);
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    res.status(500).send({error: "Error getting users"});
-  }
-});
+ 
 
 // ✅ Get role of the logged-in user by email
 tanushree.get("/role/:email", async (req, res) => {
@@ -298,14 +325,14 @@ tanushree.get("/role/:email", async (req, res) => {
     const email = req.params.email;
 
     if (!email) {
-      return res.status(400).send({error: "Email is required"});
+      return res.status(400).send({ error: "Email is required" });
     }
 
     const docRef = db.collection("studentsData").doc(email);
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      return res.status(404).send({error: "User not found"});
+      return res.status(404).send({ error: "User not found" });
     }
 
     const userData = doc.data();
@@ -316,31 +343,31 @@ tanushree.get("/role/:email", async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching role:", err);
-    res.status(500).send({error: "Failed to fetch role"});
+    res.status(500).send({ error: "Failed to fetch role" });
   }
 });
 
 // ✅ Change password route
 tanushree.post("/change-password", async (req, res) => {
   try {
-    const {email, oldPassword, newPassword} = req.body;
+    const { email, oldPassword, newPassword } = req.body;
 
     if (!email || !oldPassword || !newPassword) {
-      return res.status(400).json({error: "Email, old password, and new password are required"});
+      return res.status(400).json({ error: "Email, old password, and new password are required" });
     }
 
     const userDocRef = db.collection("studentsData").doc(email);
     const userSnapshot = await userDocRef.get();
 
     if (!userSnapshot.exists) {
-      return res.status(404).json({error: "User not found"});
+      return res.status(404).json({ error: "User not found" });
     }
 
     const userData = userSnapshot.data();
 
     // Check old password
     if (userData.password !== oldPassword) {
-      return res.status(401).json({error: "Old password is incorrect"});
+      return res.status(401).json({ error: "Old password is incorrect" });
     }
 
     // Update to new password
@@ -349,34 +376,42 @@ tanushree.post("/change-password", async (req, res) => {
       passwordUpdatedAt: admin.firestore.FieldValue.serverTimestamp(), // optional
     });
 
-    res.status(200).json({message: "Password changed successfully"});
+    res.status(200).json({ message: "Password changed successfully" });
   } catch (error) {
     console.error("Password change error:", error);
-    res.status(500).json({error: "Failed to change password"});
+    res.status(500).json({ error: "Failed to change password" });
   }
 });
 
-// ✅ Get Admins
+// ✅ OPTIMIZED: Get Admins with caching
 tanushree.get("/admins", async (req, res) => {
   try {
+    const cacheKey = 'admins_list';
+    let admins = getCache(cacheKey);
+    
+    if (admins) {
+      return res.status(200).json(admins);
+    }
+
     const snapshot = await db
       .collection("studentsData")
       .where("Role", "==", "admin")
       .get();
 
     if (snapshot.empty) {
-      return res.status(404).json({message: "No admins found"});
+      return res.status(404).json({ message: "No admins found" });
     }
 
-    const admins = snapshot.docs.map((doc) => ({
+    admins = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
 
+    setCache(cacheKey, admins);
     res.status(200).json(admins);
   } catch (error) {
     console.error("Error fetching admins:", error);
-    res.status(500).json({error: "Failed to fetch admins"});
+    res.status(500).json({ error: "Failed to fetch admins" });
   }
 });
 
@@ -429,20 +464,48 @@ tanushree.get("/complaints/:email", async (req, res) => {
   }
 });
 
-// ✅ Get all problems
+// ✅ OPTIMIZED: Get all problems with pagination
 tanushree.get("/getallproblems", async (req, res) => {
   try {
-    const snapshot = await db.collection("sheets").get();
+    const { limit = 50, startAfter } = req.query;
+    const cacheKey = `problems_${limit}_${startAfter || 'first'}`;
+    
+    // Check cache first
+    const cached = getCache(cacheKey);
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        message: "Fetched problems from cache.",
+        data: cached.problems,
+        hasMore: cached.hasMore
+      });
+    }
+
+    let query = db.collection("sheets").limit(parseInt(limit));
+    
+    if (startAfter) {
+      const startDoc = await db.collection("sheets").doc(startAfter).get();
+      query = query.startAfter(startDoc);
+    }
+
+    const snapshot = await query.get();
     const problems = [];
 
     snapshot.forEach(doc => {
       problems.push({ id: doc.id, ...doc.data() });
     });
 
+    const hasMore = snapshot.size === parseInt(limit);
+    
+    // Cache the result
+    const result = { problems, hasMore };
+    setCache(cacheKey, result);
+
     res.status(200).json({
       success: true,
       message: "Fetched all problems successfully.",
       data: problems,
+      hasMore
     });
   } catch (error) {
     console.error("Error fetching problems:", error);
@@ -455,8 +518,8 @@ tanushree.get("/getallproblems", async (req, res) => {
 });
 
 // ✅ Get all mcqs
- // GET single MCQ by subject and mcq number
- tanushree.get("/getmcq", async (req, res) => {
+// GET single MCQ by subject and mcq number
+tanushree.get("/getmcq", async (req, res) => {
   try {
     const { subject, id } = req.query;
 
@@ -496,9 +559,9 @@ tanushree.get("/getallproblems", async (req, res) => {
     const docId = `${subject.toLowerCase()}_mcq_${actualFieldId}`;
 
     const docRef = db.collection("my_mcq_details")
-                     .doc(subject.toLowerCase())
-                     .collection("questions")
-                     .doc(docId);
+      .doc(subject.toLowerCase())
+      .collection("questions")
+      .doc(docId);
 
     const doc = await docRef.get();
 
@@ -527,7 +590,6 @@ tanushree.get("/getallproblems", async (req, res) => {
   }
 });
 
-
 // 🎲 Get random MCQ from a subject
 tanushree.get("/getrandom", async (req, res) => {
   try {
@@ -555,8 +617,8 @@ tanushree.get("/getrandom", async (req, res) => {
     }
 
     const questionsRef = db.collection("my_mcq_details")
-                           .doc(subject.toLowerCase())
-                           .collection("questions");
+      .doc(subject.toLowerCase())
+      .collection("questions");
 
     const snapshot = await questionsRef.get();
     const docs = snapshot.docs;
@@ -587,17 +649,20 @@ tanushree.get("/getrandom", async (req, res) => {
   }
 });
 
-
-// 📊 Get MCQ count by subject
+// ✅ OPTIMIZED: Get MCQ count by subject with caching
 tanushree.get("/getmcqcount", async (req, res) => {
   try {
     const { subject } = req.query;
-
-    const subjectList = ['c_programming', 'c++_programming', 'java', 'python', 'pseudo_code'];
     
     if (subject) {
-      const doc = await db.collection("my_mcq_details").doc(subject.toLowerCase()).get();
-      const count = doc.data()?.totalCount || 0;
+      const cacheKey = `mcq_count_${subject}`;
+      let count = getCache(cacheKey);
+      
+      if (!count) {
+        const doc = await db.collection("my_mcq_details").doc(subject.toLowerCase()).get();
+        count = doc.data()?.totalCount || 0;
+        setCache(cacheKey, count);
+      }
 
       return res.status(200).json({
         success: true,
@@ -606,6 +671,14 @@ tanushree.get("/getmcqcount", async (req, res) => {
       });
     }
 
+    const cacheKey = 'mcq_counts_all';
+    let cachedCounts = getCache(cacheKey);
+    
+    if (cachedCounts) {
+      return res.status(200).json(cachedCounts);
+    }
+
+    const subjectList = ['c_programming', 'c++_programming', 'java', 'python', 'pseudo_code'];
     const subjectCounts = {};
     let total = 0;
 
@@ -620,12 +693,15 @@ tanushree.get("/getmcqcount", async (req, res) => {
       }
     }
 
-    res.status(200).json({
+    const result = {
       success: true,
       message: "MCQ counts by subject",
       data: subjectCounts,
       total
-    });
+    };
+    
+    setCache(cacheKey, result);
+    res.status(200).json(result);
   } catch (error) {
     console.error("❌ Error in /getmcqcount:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
@@ -633,17 +709,25 @@ tanushree.get("/getmcqcount", async (req, res) => {
 });
 
 //get notes by subject and unit
- // 🔥 GET /api/subjects
+// 🔥 GET /api/subjects
 tanushree.get('/api/subjects', async (req, res) => {
   try {
-    const snapshot = await db.collection('NotesStudy').listDocuments();
-    const subjects = snapshot.map(doc => doc.id);
+    const cacheKey = 'notes_subjects';
+    let subjects = getCache(cacheKey);
+    
+    if (!subjects) {
+      const snapshot = await db.collection('NotesStudy').listDocuments();
+      subjects = snapshot.map(doc => doc.id);
+      setCache(cacheKey, subjects);
+    }
+    
     res.json({ subjects });
   } catch (err) {
     console.error("🔥 Error fetching subjects:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 // 🔥 GET /api/units?subject=adv-java
 tanushree.get('/api/units', async (req, res) => {
   const { subject } = req.query;
@@ -656,36 +740,41 @@ tanushree.get('/api/units', async (req, res) => {
   }
 
   try {
-    const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
-    const snapshot = await unitsRef.get();
-
-    console.log(`📄 Found ${snapshot.size} unit documents`);
-
-    const units = snapshot.docs.map(doc => {
-      const data = doc.data();
-      console.log(`➡️ Doc: ${doc.id}, unit: ${data.unit}, heading: ${data.heading}`);
-      return {
-        heading: data.heading || `Untitled Unit (${data.unit || doc.id})`,
-        unit: data.unit || ""
-      };
-    });
-
-    // Natural-like sorting
-    units.sort((a, b) => {
-      const toChunks = val => String(val.unit || "").split('.').map(Number);
+    const cacheKey = `units_${subject}`;
+    let units = getCache(cacheKey);
     
-      const A = toChunks(a);
-      const B = toChunks(b);
-    
-      for (let i = 0; i < Math.max(A.length, B.length); i++) {
-        if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0);
-      }
-    
-      return (a.heading || "").localeCompare(b.heading);
-    });
-    
+    if (!units) {
+      const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
+      const snapshot = await unitsRef.get();
 
-    console.log('✅ Sorted units:', units.map(u => u.unit));
+      console.log(`📄 Found ${snapshot.size} unit documents`);
+
+      units = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log(`➡️ Doc: ${doc.id}, unit: ${data.unit}, heading: ${data.heading}`);
+        return {
+          heading: data.heading || `Untitled Unit (${data.unit || doc.id})`,
+          unit: data.unit || ""
+        };
+      });
+
+      // Natural-like sorting
+      units.sort((a, b) => {
+        const toChunks = val => String(val.unit || "").split('.').map(Number);
+
+        const A = toChunks(a);
+        const B = toChunks(b);
+
+        for (let i = 0; i < Math.max(A.length, B.length); i++) {
+          if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0);
+        }
+
+        return (a.heading || "").localeCompare(b.heading);
+      });
+
+      console.log('✅ Sorted units:', units.map(u => u.unit));
+      setCache(cacheKey, units);
+    }
 
     return res.json({ subject, units });
 
@@ -704,36 +793,46 @@ tanushree.get('/api/notes', async (req, res) => {
   }
 
   try {
-    const unitsRef = db.collection('NotesStudy')
-      .doc(subject)
-      .collection('units');
+    const cacheKey = `notes_${subject}_${unit}`;
+    let noteData = getCache(cacheKey);
+    
+    if (!noteData) {
+      const unitsRef = db.collection('NotesStudy')
+        .doc(subject)
+        .collection('units');
 
-    const snapshot = await unitsRef.get();
+      const snapshot = await unitsRef.get();
 
-    const matchDoc = snapshot.docs.find(doc => {
-      const data = doc.data();
-      return String(data.unit).trim() === unit.trim();
-    });
-
-    if (!matchDoc) {
-      return res.status(404).json({
-        error: 'Unit not found',
-        tried: unit,
-        availableUnits: snapshot.docs.map(d => d.data().unit)
+      const matchDoc = snapshot.docs.find(doc => {
+        const data = doc.data();
+        return String(data.unit).trim() === unit.trim();
       });
+
+      if (!matchDoc) {
+        return res.status(404).json({
+          error: 'Unit not found',
+          tried: unit,
+          availableUnits: snapshot.docs.map(d => d.data().unit)
+        });
+      }
+
+      noteData = {
+        subject,
+        unit: matchDoc.id,
+        data: matchDoc.data()
+      };
+      
+      setCache(cacheKey, noteData);
     }
 
-    return res.json({
-      subject,
-      unit: matchDoc.id,
-      data: matchDoc.data()
-    });
+    return res.json(noteData);
 
   } catch (err) {
     console.error('🔥 Firestore error:', err);
     return res.status(500).json({ error: 'Something went wrong' });
   }
 });
+
 // edit the notes
 tanushree.patch("/notes/:subject/:unit", async (req, res) => {
   const { subject, unit } = req.params;
@@ -768,6 +867,12 @@ tanushree.patch("/notes/:subject/:unit", async (req, res) => {
     const docRef = snapshot.docs[0].ref;
     await docRef.update(updateData);
 
+    // Clear related cache
+    const cacheKey = `notes_${subject}_${unit}`;
+    cache.delete(cacheKey);
+    const unitsCacheKey = `units_${subject}`;
+    cache.delete(unitsCacheKey);
+
     res.status(200).json({ message: "Note updated successfully" });
 
   } catch (error) {
@@ -775,6 +880,8 @@ tanushree.patch("/notes/:subject/:unit", async (req, res) => {
     res.status(500).json({ error: "Failed to update note" });
   }
 });
+
+// ✅ AI Ask endpoint
 tanushree.post("/api/ask-ai", async (req, res) => {
   const { question } = req.body;
 
@@ -796,8 +903,7 @@ tanushree.post("/api/ask-ai", async (req, res) => {
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${"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"
-          }`,
+          Authorization: `Bearer ${"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"}`,
         },
       }
     );
@@ -810,9 +916,7 @@ tanushree.post("/api/ask-ai", async (req, res) => {
   }
 });
 
-
- 
-// POST /api/dynamicmcq/create
+// ✅ POST /create - Create dynamic MCQ test
 tanushree.post('/create', async (req, res) => {
   try {
     const { subject, testName, mcqData } = req.body;
@@ -842,6 +946,9 @@ tanushree.post('/create', async (req, res) => {
       data: mcqData // direct save as user provided id and fields
     });
 
+    // Clear cache for all tests
+    cache.delete('all_tests');
+
     return res.status(201).json({
       status: 'success',
       docId,
@@ -854,8 +961,8 @@ tanushree.post('/create', async (req, res) => {
   }
 });
 
-//get
- tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
+// ✅ GET /customquiz/:subject/:docId - Get specific custom quiz
+tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
   try {
     const { subject, docId } = req.params;
 
@@ -863,33 +970,42 @@ tanushree.post('/create', async (req, res) => {
       return res.status(400).json({ error: 'Missing subject or docId in params' });
     }
 
-    const testRef = db
-      .collection('DynamicMcq')
-      .doc(subject)
-      .collection('tests')
-      .doc(docId);
+    const cacheKey = `customquiz_${subject}_${docId}`;
+    let testData = getCache(cacheKey);
 
-    const doc = await testRef.get();
+    if (!testData) {
+      const testRef = db
+        .collection('DynamicMcq')
+        .doc(subject)
+        .collection('tests')
+        .doc(docId);
 
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Test not found' });
+      const doc = await testRef.get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'Test not found' });
+      }
+
+      const data = doc.data();
+      const mcqData = data.data || [];
+
+      // You can optionally attach subject field to each MCQ (if needed on frontend)
+      const enrichedMcqData = mcqData.map(mcq => ({
+        ...mcq,
+        subject
+      }));
+
+      testData = {
+        testName: data.testName,
+        docId,
+        subject,
+        mcqData: enrichedMcqData
+      };
+
+      setCache(cacheKey, testData);
     }
 
-    const data = doc.data();
-    const mcqData = data.data || [];
-
-    // You can optionally attach subject field to each MCQ (if needed on frontend)
-    const enrichedMcqData = mcqData.map(mcq => ({
-      ...mcq,
-      subject
-    }));
-
-    return res.status(200).json({
-      testName: data.testName,
-      docId,
-      subject,
-      mcqData: enrichedMcqData
-    });
+    return res.status(200).json(testData);
 
   } catch (err) {
     console.error('Error fetching test:', err);
@@ -897,56 +1013,34 @@ tanushree.post('/create', async (req, res) => {
   }
 });
 
-
-
-const getAllTests = async (req, res) => {
-  try {
-    const allTests = {};
-    const subjectSnapshot = await db.collection("DynamicMcq").listDocuments();
-
-    for (const subjectDoc of subjectSnapshot) {
-      const subject = subjectDoc.id;
-      const testsRef = db.collection("DynamicMcq").doc(subject).collection("tests");
-      const testsSnapshot = await testsRef.get();
-
-      const subjectTests = [];
-
-      testsSnapshot.forEach(doc => {
-        subjectTests.push({
-          id: doc.id,
-          ...doc.data(),
-        });
-      });
-
-      allTests[subject] = subjectTests;
-    }
-
-    res.status(200).json(allTests);
-  } catch (err) {
-    console.error("Error fetching all tests:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-// ✅ Fetch all tests across all subjects
+// ✅ OPTIMIZED: Fetch all tests across all subjects with caching
 tanushree.get("/alltests", async (req, res) => {
   try {
-    const allTests = {};
-    const subjectDocs = await db.collection("DynamicMcq").listDocuments();
+    const cacheKey = 'all_tests';
+    let allTests = getCache(cacheKey);
+    
+    if (!allTests) {
+      allTests = {};
+      const subjectDocs = await db.collection("DynamicMcq").listDocuments();
 
-    for (const subjectDoc of subjectDocs) {
-      const subjectName = subjectDoc.id;
-      const testsRef = db.collection("DynamicMcq").doc(subjectName).collection("tests");
-      const testDocs = await testsRef.get();
+      for (const subjectDoc of subjectDocs) {
+        const subjectName = subjectDoc.id;
+        const testsRef = db.collection("DynamicMcq").doc(subjectName).collection("tests");
+        const testDocs = await testsRef.get();
 
-      const tests = [];
-      testDocs.forEach(doc => {
-        tests.push({
-          id: doc.id,
-          ...doc.data(),
+        const tests = [];
+        testDocs.forEach(doc => {
+          const data = doc.data();
+          tests.push({
+            id: doc.id,
+            testName: data.testName || "Untitled",
+          });
         });
-      });
 
-      allTests[subjectName] = tests;
+        allTests[subjectName] = tests;
+      }
+
+      setCache(cacheKey, allTests);
     }
 
     res.status(200).json(allTests);
@@ -956,48 +1050,10 @@ tanushree.get("/alltests", async (req, res) => {
   }
 });
 
- 
-tanushree.get('/api/all-tests', async (req, res) => {
-  try {
-    const db = admin.firestore();
-    const subjectDocs = await db.collection('DynamicMcq').listDocuments();
-
-    const allTests = [];
-
-    for (const subjectRef of subjectDocs) {
-      const subjectName = subjectRef.id;
-
-      const testsSnapshot = await subjectRef.collection('tests').get();
-
-      testsSnapshot.forEach(testDoc => {
-        const testData = testDoc.data();
-
-        allTests.push({
-          subject: subjectName,
-          testId: testDoc.id,
-          testName: testData.testName || "Untitled Test",
-          // Add more fields if needed, e.g.:
-          // totalQuestions: testData.questions?.length || 0,
-          // createdAt: testData.createdAt || null
-        });
-      });
-    }
-
-    res.json(allTests);
-  } catch (err) {
-    console.error("🔥 Error fetching all tests:", err);
-    res.status(500).json({ error: "Failed to fetch tests" });
-  }
-});
-
- 
-
 // ✅ Test route
 tanushree.get("/hello", (req, res) => {
   res.send("working");
 });
 
-// ✅ Export the Express tanushree as Firebase Function
+// ✅ Export the Express app as Firebase Function
 exports.api = functions.https.onRequest(tanushree);
-
-// I m making a web application using mern stack . in that i am using firestore database instead of mongodb.  

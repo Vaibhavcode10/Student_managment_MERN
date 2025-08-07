@@ -24,23 +24,7 @@ export const UserProvider = ({ children }) => {
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState(null);
   const [currentUserDetails, setCurrentUserDetails] = useState(null);
-  useEffect(() => {
-    const fetchData = async () => {
-      if (email && currentUserDetails) {
-        try {
-          const res = await fetch(`${BASE_URL}/user/${email}`);
-          const data = await res.json();
-          console.log("🔁 /user data from backend:", data);
-        } catch (err) {
-          console.error("❌ Error fetching /user:", err);
-        }
-      }
-    };
-  
-    fetchData();
-  }, [email, currentUserDetails]);
-  console.log(currentUserDetails)
-  
+ 
   //functionality
   const [formData, setFormData] = useState({
     email: "",

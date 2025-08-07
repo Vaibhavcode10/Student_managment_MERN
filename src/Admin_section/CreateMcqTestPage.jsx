@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-// Helper function to convert string to hex
+// Convert string to hex
 const stringToHex = (str) =>
   str
     .split("")
     .map((c) => c.charCodeAt(0).toString(16).padStart(2, "0"))
     .join("");
 
-// Check if string is already in hex
+// Check if already in hex
 const isHex = (str) => /^[0-9a-fA-F]+$/.test(str) && str.length % 2 === 0;
 
 const CreateMcqTestPage = () => {
@@ -21,20 +21,36 @@ const CreateMcqTestPage = () => {
   const [loading, setLoading] = useState(false);
   const [createdLink, setCreatedLink] = useState(null);
 
-  useEffect(() => {
-    const fetchTests = async () => {
-      try {
-        const res = await axios.get("https://api-e5q6islzdq-uc.a.run.app/api/all-tests");
-        setTests(res.data);
-      } catch (err) {
-        console.error("Failed to fetch tests:", err);
-      } finally {
-        setLoadingTests(false);
-      }
-    };
+  const API_BASE = "https://api-e5q6islzdq-uc.a.run.app";
 
-    fetchTests();
-  }, []);
+ useEffect(() => {
+  const fetchTests = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/alltests`);
+
+      // Flatten the grouped object into a single array
+      const groupedData = res.data;
+      const allTests = [];
+
+      for (const subject in groupedData) {
+        groupedData[subject].forEach((test) => {
+          allTests.push({
+            ...test,
+            subject, // include subject in each test item
+          });
+        });
+      }
+
+      setTests(allTests); // now it's a flat array with subject info
+    } catch (err) {
+      console.error("Failed to fetch tests:", err);
+    } finally {
+      setLoadingTests(false);
+    }
+  };
+  fetchTests();
+}, []);
+
 
   const handleCreateTest = async () => {
     setLoading(true);
@@ -51,20 +67,19 @@ const CreateMcqTestPage = () => {
         return;
       }
 
-      const transformedData = mcqData.map((q) => {
+      const transformedData = mcqData.map((q, index) => {
         if (
           typeof q.question !== "string" ||
           !Array.isArray(q.options) ||
           q.options.length !== 4 ||
           typeof q.answer !== "string" ||
-          typeof q.id !== "string" ||
           typeof q.subtopic !== "string"
         ) {
           throw new Error("Invalid MCQ format");
         }
 
         return {
-          id: q.id,
+          id: q.id || `q${index + 1}`,
           subtopic: q.subtopic,
           question: isHex(q.question) ? q.question : stringToHex(q.question),
           options: q.options.map((opt) =>
@@ -74,20 +89,17 @@ const CreateMcqTestPage = () => {
         };
       });
 
-      const response = await axios.post(
-        "https://api-e5q6islzdq-uc.a.run.app/create",
-        {
-          subject,
-          testName,
-          mcqData: transformedData,
-        }
-      );
+      const response = await axios.post(`${API_BASE}/create`, {
+        subject,
+        testName,
+        mcqData: transformedData,
+      });
 
-      const { link } = response.data;
-      setCreatedLink(link);
+      setCreatedLink(response.data.link);
+      setJsonInput("");
     } catch (err) {
       console.error("Failed to create test:", err);
-      alert("Something went wrong. Possibly invalid JSON or server issue.");
+      alert("Invalid JSON format or server error.");
     } finally {
       setLoading(false);
     }
@@ -118,30 +130,34 @@ const CreateMcqTestPage = () => {
       )}
 
       {!showForm && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold mb-6">Available Tests</h2>
           {loadingTests ? (
             <p className="text-gray-500">Loading tests...</p>
           ) : tests.length === 0 ? (
             <p className="text-gray-500">No tests available.</p>
           ) : (
-           <div className="p-6">
-  <h1 className="text-2xl font-bold mb-6">Available Tests</h1>
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    {tests.map((test, i) => (
-      <div key={i} className="border p-4 rounded-2xl shadow-md bg-white hover:shadow-xl transition-shadow">
-        <h2 className="text-xl font-semibold text-purple-700">{test.testName}</h2>
-        <p className="text-sm text-gray-600 mt-1">Subject: <span className="font-medium">{test.subject}</span></p>
-        <a
-          href={`/dashboard/customquiz/${test.subject}/${test.testId}`}
-          className="inline-block mt-4 text-sm text-white bg-purple-600 px-4 py-2 rounded hover:bg-purple-700 transition"
-        >
-          View Test
-        </a>
-      </div>
-    ))}
-  </div>
-</div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {tests.map((test, i) => (
+                <div
+                  key={i}
+                  className="border p-4 rounded-2xl shadow-md bg-white hover:shadow-xl transition-shadow"
+                >
+                  <h3 className="text-xl font-semibold text-purple-700">
+                    {test.testName}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Subject: <span className="font-medium">{test.subject}</span>
+                  </p>
+                  <a
+                    href={`/dashboard/customquiz/${test.subject}/${test.testId}`}
+                    className="inline-block mt-4 text-sm text-white bg-purple-600 px-4 py-2 rounded hover:bg-purple-700 transition"
+                  >
+                    View Test
+                  </a>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
