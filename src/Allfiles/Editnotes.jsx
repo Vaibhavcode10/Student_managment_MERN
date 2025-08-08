@@ -149,7 +149,6 @@ export default function Editnotes() {
     "java": "Java",
     "javascript": "JavaScript",
     "kid-python": "Python for Kids",
-    "kidpython": "Python for Kids",
     "mongo": "MongoDB",
     "mysql": "MySQL",
     "nextjs": "Next.js",

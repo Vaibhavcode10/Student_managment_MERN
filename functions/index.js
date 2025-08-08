@@ -474,7 +474,7 @@ tanushree.get("/getallproblems", async (req, res) => {
     if (cached) {
       return res.status(200).json({
         success: true,
-        message: "Fetched problems from cache.",
+        message: "Fetched problems from cachhe   ",
         data: cached.problems,
         hasMore: cached.hasMore
       });
@@ -1049,9 +1049,9 @@ tanushree.get("/alltests", async (req, res) => {
   }
 });
 
-// ✅ Test route
-tanushree.get("/hello", (req, res) => {
-  res.send("working");
+// ✅ Test route 
+tanushree.get("/test", (req, res) => {
+  res.send("Hello Tanushree");
 });
 
 // ✅ Export the Express app as Firebase Function

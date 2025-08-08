@@ -103,9 +103,7 @@ export default function Notes() {
     "html": "HTML",
     "java": "Java",
     "javascript": "JavaScript",
-    "kid-python": "Python for Kids",
-    "kidpython": "Python for Kids",
-    "kidpython": "Python for Kids",
+    "kid-python": "Python for Kids", 
     "mongo": "MongoDB",
     "mysql": "MySQL",
     "nextjs": "Next.js",
@@ -296,3 +294,6 @@ export default function Notes() {
     </div>
   );
 }
+
+
+
