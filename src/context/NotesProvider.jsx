@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useCallback, useRef } from "react";
 
 const NotesContext = createContext();
 
@@ -9,7 +9,20 @@ export const NotesProvider = ({ children }) => {
   const [subject, setSubject] = useState("");
   const [units, setUnits] = useState([]);
   const [note, setNote] = useState(null);
-  const [trydata,settrydata]=useState([]);
+  const [trydata, settrydata] = useState([]);
+  
+  // 🔧 Add loading states and cache to prevent duplicate calls
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
+  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
+  const [isLoadingNote, setIsLoadingNote] = useState(false);
+  
+  // Cache to prevent duplicate API calls
+  const cache = useRef({
+    subjects: null,
+    units: new Map(), // subject -> units
+    notes: new Map()  // subject+unit -> note
+  });
+
   const BASE_URL = "https://api-e5q6islzdq-uc.a.run.app/api";
 
   // 🧠 Convert hex to readable string
@@ -33,12 +46,10 @@ export const NotesProvider = ({ children }) => {
     const headingLower = heading.toLowerCase();
     const unitLower = unitStr.toLowerCase();
     
-    // Check if heading starts with unit number or zero-padded version
     const startsWithUnit = headingLower.startsWith(unitLower) || 
                          headingLower.startsWith('0' + unitLower);
     
     if (startsWithUnit) {
-      // Find where the unit number ends and remove it along with following separators
       let cleanHeading = heading;
       if (headingLower.startsWith(unitLower)) {
         cleanHeading = heading.substring(unitStr.length);
@@ -46,33 +57,71 @@ export const NotesProvider = ({ children }) => {
         cleanHeading = heading.substring(unitStr.length + 1);
       }
       
-      // Remove leading separators (space, colon, dot, dash)
       return cleanHeading.replace(/^[\s:.\-]+/, '').trim();
     }
     
     return heading;
   };
 
-  // 📚 Fetch subject list
-  const fetchSubjects = async () => {
+  // 📚 Fetch subject list with caching and duplicate prevention
+  const fetchSubjects = useCallback(async () => {
+    // 🔧 Prevent duplicate calls
+    if (isLoadingSubjects) {
+      console.log("📚 fetchSubjects already in progress, skipping...");
+      return;
+    }
+    
+    // 🔧 Return cached data if available
+    if (cache.current.subjects && subjects.length > 0) {
+      console.log("📚 Using cached subjects");
+      return;
+    }
+
+    setIsLoadingSubjects(true);
+    
     try {
+      console.log("📚 Fetching subjects from API...");
       const res = await fetch(`${BASE_URL}/subjects`);
       const data = await res.json();
       const subjectList = data.subjects || [];
+      
+      // Cache the result
+      cache.current.subjects = subjectList;
       setSubjects(subjectList);
+      console.log("✅ Subjects fetched:", subjectList.length);
     } catch (err) {
       console.error("❌ Error fetching subjects:", err);
       setSubjects([]);
+    } finally {
+      setIsLoadingSubjects(false);
     }
-  };
+  }, [isLoadingSubjects, subjects.length]);
 
-  // 🧩 Fetch units for a subject
-  const fetchUnits = async (selectedSubject) => {
+  // 🧩 Fetch units for a subject with caching
+  const fetchUnits = useCallback(async (selectedSubject) => {
+    if (!selectedSubject) return;
+    
+    // 🔧 Prevent duplicate calls
+    if (isLoadingUnits) {
+      console.log("🧩 fetchUnits already in progress, skipping...");
+      return;
+    }
+
+    // 🔧 Return cached data if available
+    const cachedUnits = cache.current.units.get(selectedSubject);
+    if (cachedUnits && subject === selectedSubject) {
+      console.log("🧩 Using cached units for", selectedSubject);
+      return;
+    }
+
+    setIsLoadingUnits(true);
+    
     try {
       setSubject(selectedSubject);
       setNote(null);
-      setUnits([]); // 🧼 Clear previous units instantly
+      setUnits([]); // Clear previous units instantly
 
+      console.log("🧩 Fetching units for:", selectedSubject);
       const res = await fetch(`${BASE_URL}/units?subject=${selectedSubject}`);
       const data = await res.json();
 
@@ -82,23 +131,48 @@ export const NotesProvider = ({ children }) => {
         return aUnit - bUnit;
       });
 
-      // ✂️ Clean up headings for all units
+      // Clean up headings for all units
       const cleanedUnits = sorted.map(unit => ({
         ...unit,
         displayHeading: cleanHeading(unit.unit, unit.heading)
       }));
 
+      // Cache the result
+      cache.current.units.set(selectedSubject, cleanedUnits);
       setUnits(cleanedUnits);
-      console.log(`📦 Units for "${selectedSubject}":`, cleanedUnits);
+      console.log(`✅ Units for "${selectedSubject}":`, cleanedUnits.length);
     } catch (err) {
       console.error("❌ Error fetching units:", err);
       setUnits([]);
+    } finally {
+      setIsLoadingUnits(false);
     }
-  };
+  }, [isLoadingUnits, subject]);
 
-  // 📄 Fetch note data
-  const fetchNote = async (unitHeading) => {
+  // 📄 Fetch note data with caching
+  const fetchNote = useCallback(async (unitHeading) => {
+    if (!subject || !unitHeading) return;
+    
+    const cacheKey = `${subject}-${unitHeading}`;
+    
+    // 🔧 Prevent duplicate calls
+    if (isLoadingNote) {
+      console.log("📄 fetchNote already in progress, skipping...");
+      return;
+    }
+
+    // 🔧 Return cached data if available
+    const cachedNote = cache.current.notes.get(cacheKey);
+    if (cachedNote) {
+      console.log("📄 Using cached note for", cacheKey);
+      setNote(cachedNote);
+      return;
+    }
+
+    setIsLoadingNote(true);
+    
     try {
+      console.log("📄 Fetching note for:", cacheKey);
       const res = await fetch(
         `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
       );
@@ -112,19 +186,22 @@ export const NotesProvider = ({ children }) => {
 
       const rawNote = data.data;
       
-     
-     
       if (rawNote?.code) {
         rawNote.code = hexToString(rawNote.code);
       }
 
+      // Cache the result
+      cache.current.notes.set(cacheKey, rawNote);
       setNote(rawNote);
-     
+      console.log("✅ Note fetched for:", cacheKey);
     } catch (err) {
       console.error("❌ Error fetching note:", err);
       setNote(null);
+    } finally {
+      setIsLoadingNote(false);
     }
-  };
+  }, [subject, isLoadingNote]);
+
   // ✏️ Update note data (PATCH)
   const updateNote = async (unitId, updatedFields) => {
     try {
@@ -135,13 +212,17 @@ export const NotesProvider = ({ children }) => {
         },
         body: JSON.stringify(updatedFields),
       });
-  
+
       const data = await res.json();
-  
+
       if (!res.ok) {
         throw new Error(data.error || "Failed to update note");
       }
-  
+
+      // 🔧 Invalidate cache for updated note
+      const cacheKey = `${subject}-${unitId}`;
+      cache.current.notes.delete(cacheKey);
+
       console.log("✅ Note updated successfully:", data);
       return { success: true, message: data.message || "Note updated" };
     } catch (err) {
@@ -150,36 +231,29 @@ export const NotesProvider = ({ children }) => {
     }
   };
 
-  //trydata will delet later 
-  
-const testFetchNote = async () => {
-  const subject = "java";
-  const unitHeading = "1";
+  // Test function - will delete later 
+  const testFetchNote = async () => {
+    const subject = "java";
+    const unitHeading = "1";
 
-  try {
-    const res = await fetch(
-      `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
-    );
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
+      );
+      const data = await res.json();
 
-    if (!data?.data) {
-      console.warn("⚠️ No note data found:", data);
-      // setNote(null); // ← Only if you're using React state
-      return;
+      if (!data?.data) {
+        console.warn("⚠️ No note data found:", data);
+        return;
+      }
+
+      const rawNote = data.data;
+      settrydata(rawNote);
+      console.log("✅ Raw Note from API:", rawNote);
+    } catch (err) {
+      console.error("❌ Error fetching note:", err);
     }
-
-    const rawNote = data.data;
-   settrydata(rawNote)
-    // If you're testing, maybe show this in console or UI
-    console.log("✅ Raw Note from API:", rawNote);
- 
- 
-  } catch (err) {
-    console.error("❌ Error fetching note:", err);
-    // setNote(null); // optional
-  }
-};
-
+  };
 
   return (
     <NotesContext.Provider
@@ -189,6 +263,11 @@ const testFetchNote = async () => {
         units,
         note,
         trydata,
+        // Loading states
+        isLoadingSubjects,
+        isLoadingUnits,
+        isLoadingNote,
+        // Functions
         testFetchNote,
         fetchSubjects,
         fetchUnits, 

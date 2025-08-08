@@ -317,7 +317,6 @@ tanushree.put("/make-student", async (req, res) => {
   }
 });
 
- 
 
 // ✅ Get role of the logged-in user by email
 tanushree.get("/role/:email", async (req, res) => {
