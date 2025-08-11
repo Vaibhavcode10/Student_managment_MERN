@@ -1055,4 +1055,4 @@ tanushree.get("/test", (req, res) => {
 });
 
 // ✅ Export the Express app as Firebase Function
-exports.api = functions.https.onRequest(tanushree);
+exports.vaibhav123 = functions.https.onRequest(tanushree);
