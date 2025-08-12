@@ -832,53 +832,59 @@ tanushree.get('/api/notes', async (req, res) => {
   }
 });
 
+
 // edit the notes
-tanushree.patch("/notes/:subject/:unit", async (req, res) => {
-  const { subject, unit } = req.params;
-  const { content, heading, code, unit: newUnit } = req.body;
+// edit the notes by document ID
+tanushree.patch("/notes/:subject/:docId", async (req, res) => {
+  const { subject, docId } = req.params;
+  const { content, heading, code, unit } = req.body;
 
   const updateData = {};
   if (content !== undefined) updateData.content = content;
   if (heading !== undefined) updateData.heading = heading;
   if (code !== undefined) updateData.code = code;
-  if (newUnit !== undefined) updateData.unit = newUnit;
+  if (unit !== undefined) updateData.unit = unit;
 
   if (Object.keys(updateData).length === 0) {
     return res.status(400).json({ error: "No fields provided to update" });
   }
 
   try {
-    // 🔁 Type-safe comparison
-    let unitToMatch = isNaN(unit) ? unit : parseFloat(unit);
-
-    const snapshot = await db
+    const docRef = db
       .collection("NotesStudy")
       .doc(subject)
       .collection("units")
-      .where("unit", "==", unitToMatch)
-      .limit(1)
-      .get();
+      .doc(docId);
 
-    if (snapshot.empty) {
-      return res.status(404).json({ error: "Note not found for that unit" });
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Note not found with that ID" });
     }
 
-    const docRef = snapshot.docs[0].ref;
     await docRef.update(updateData);
 
     // Clear related cache
-    const cacheKey = `notes_${subject}_${unit}`;
+    const cacheKey = `notes_${subject}_${docId}`;
     cache.delete(cacheKey);
     const unitsCacheKey = `units_${subject}`;
     cache.delete(unitsCacheKey);
 
-    res.status(200).json({ message: "Note updated successfully" });
+    res.status(200).json({ 
+      message: "Note updated successfully",
+      updatedFields: Object.keys(updateData)
+    });
 
   } catch (error) {
     console.error("🔥 Update error:", error);
-    res.status(500).json({ error: "Failed to update note" });
+    res.status(500).json({ 
+      error: "Failed to update note",
+      details: error.message 
+    });
   }
 });
+// might delet later
+// y
 
 // ✅ AI Ask endpoint
 tanushree.post("/api/ask-ai", async (req, res) => {
@@ -1055,4 +1061,4 @@ tanushree.get("/test", (req, res) => {
 });
 
 // ✅ Export the Express app as Firebase Function
-exports.vaibhav123 = functions.https.onRequest(tanushree);
+exports.api = functions.https.onRequest(tanushree);

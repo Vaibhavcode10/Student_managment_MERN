@@ -203,33 +203,40 @@ export const NotesProvider = ({ children }) => {
   }, [subject, isLoadingNote]);
 
   // ✏️ Update note data (PATCH)
-  const updateNote = async (unitId, updatedFields) => {
-    try {
-      const res = await fetch(`https://api-e5q6islzdq-uc.a.run.app/notes/${subject}/${encodeURIComponent(unitId)}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedFields),
-      });
+// ✏️ Fixed Update note data (PATCH) - ADD /api/ to the URL
+const updateNote = async (unitId, updatedFields) => {
+  try {
+    console.log("🚀 Sending PATCH request:", {
+      url: `${BASE_URL}/notes/${subject}/${encodeURIComponent(unitId)}`,
+      body: updatedFields
+    });
 
-      const data = await res.json();
+    const res = await fetch(`${BASE_URL}/notes/${subject}/${encodeURIComponent(unitId)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updatedFields),
+    });
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to update note");
-      }
+    const data = await res.json();
+    console.log("📡 API Response:", { status: res.status, data });
 
-      // 🔧 Invalidate cache for updated note
-      const cacheKey = `${subject}-${unitId}`;
-      cache.current.notes.delete(cacheKey);
-
-      console.log("✅ Note updated successfully:", data);
-      return { success: true, message: data.message || "Note updated" };
-    } catch (err) {
-      console.error("❌ Error updating note:", err.message);
-      return { success: false, error: err.message };
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP ${res.status}: Failed to update note`);
     }
-  };
+
+    // 🔧 Invalidate cache for updated note
+    const cacheKey = `${subject}-${unitId}`;
+    cache.current.notes.delete(cacheKey);
+
+    console.log("✅ Note updated successfully:", data);
+    return { success: true, message: data.message || "Note updated" };
+  } catch (err) {
+    console.error("❌ Error updating note:", err.message);
+    return { success: false, error: err.message };
+  }
+};
 
   // Test function - will delete later 
   const testFetchNote = async () => {
