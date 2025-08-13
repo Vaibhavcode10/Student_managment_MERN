@@ -29,7 +29,7 @@ function getCache(key) {
 
 tanushree.use(cors({
   origin: ["http://localhost:5173", "https://chedotech-85bbf.web.app"],
-  methods: ["GET", "POST", "OPTIONS"],
+  methods: ["GET", "POST", "OPTIONS","PATCH"],
   credentials: true
 }));
 
