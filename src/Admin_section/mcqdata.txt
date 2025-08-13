@@ -14,3 +14,130 @@
     "answer": "string"
   }
 ]
+
+Category 1: If-Else & Conditionals (10 programs)
+Check if a number is even or odd ✔️
+
+Check if a number is positive, negative, or zero
+
+Find the greatest of two numbers
+
+Find the greatest of three numbers
+
+Check if a number is divisible by 5 and 11
+
+Check if a year is a leap year
+
+Check whether a character is alphabet or not
+
+Check whether character is vowel or consonant
+
+Check if number is prime
+
+Check if number is a multiple of 3, 5, or both
+
+🔁 Category 2: Loops (12 programs)
+Print 1 to N using for loop
+
+Print N to 1 using while loop
+
+Print all even numbers from 1 to N
+
+Print all odd numbers from 1 to N
+
+Calculate factorial of a number
+
+Find sum of first N natural numbers
+
+Reverse a number
+
+Count number of digits in a number
+
+Check if a number is a palindrome
+
+Check if a number is an Armstrong number
+
+Generate multiplication table of a number
+
+Print Fibonacci series up to N terms
+
+🔘 Category 3: Switch Case (5 programs)
+Calculator using switch
+
+Days of week (1-7) using switch
+
+Month name (1-12) using switch
+
+Vowel checker using switch
+
+Grade calculator using switch
+
+📦 Category 4: Arrays (10 programs)
+Take array input and print
+
+Find max element in array
+
+Find min element in array
+
+Search for element in array (linear search)
+
+Sort array in ascending order
+
+Reverse an array
+
+Count even and odd numbers in array
+
+Sum of all elements in array
+
+Merge two arrays
+
+Find duplicate elements in array
+
+🔤 Category 5: Strings (8 programs)
+Take string input and print
+
+Count vowels, consonants, digits
+
+Reverse a string
+
+Check if string is palindrome
+
+Convert string to uppercase
+
+Convert string to lowercase
+
+Compare two strings
+
+Find frequency of characters in string
+
+⚙️ Category 6: Functions (5 programs)
+Check prime using function
+
+Factorial using function
+
+Power of number using function
+
+Swap two numbers using function
+
+GCD and LCM using functions
+
+🔁 Category 7: Misc. / Extra Programs (10)
+Print pattern – square
+
+Print pattern – half pyramid
+
+Print pattern – number pyramid
+
+Print pattern – inverted triangle
+
+Sum of digits of a number
+
+Find smallest divisor of number
+
+Sum of prime numbers from 1 to N
+
+Print all divisors of a number
+
+Count digits without converting to string
+
+Print ASCII value of character
