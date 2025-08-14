@@ -707,19 +707,19 @@ tanushree.get("/getmcqcount", async (req, res) => {
   }
 });
 
-//get notes by subject and unit
-// 🔥 GET /api/subjects
+ //get subject
+ 
 tanushree.get('/api/subjects', async (req, res) => {
   try {
     const cacheKey = 'notes_subjects';
     let subjects = getCache(cacheKey);
-    
+
     if (!subjects) {
       const snapshot = await db.collection('NotesStudy').listDocuments();
       subjects = snapshot.map(doc => doc.id);
       setCache(cacheKey, subjects);
     }
-    
+
     res.json({ subjects });
   } catch (err) {
     console.error("🔥 Error fetching subjects:", err);
@@ -727,92 +727,67 @@ tanushree.get('/api/subjects', async (req, res) => {
   }
 });
 
+ 
 // 🔥 GET /api/units?subject=adv-java
 tanushree.get('/api/units', async (req, res) => {
   const { subject } = req.query;
 
-  console.log('📥 Request received for units with subject:', subject);
-
-  if (!subject) {
-    console.log('❌ Missing subject param');
-    return res.status(400).json({ error: "Subject is required" });
-  }
+  if (!subject) return res.status(400).json({ error: "Subject is required" });
 
   try {
     const cacheKey = `units_${subject}`;
     let units = getCache(cacheKey);
-    
+
     if (!units) {
       const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
       const snapshot = await unitsRef.get();
 
-      console.log(`📄 Found ${snapshot.size} unit documents`);
-
       units = snapshot.docs.map(doc => {
         const data = doc.data();
-        console.log(`➡️ Doc: ${doc.id}, unit: ${data.unit}, heading: ${data.heading}`);
         return {
           heading: data.heading || `Untitled Unit (${data.unit || doc.id})`,
-          unit: data.unit || ""
+          unit: data.unit || "",
+          docId: doc.id  // ✅ include docId for frontend to use when editing
         };
       });
 
-      // Natural-like sorting
-      units.sort((a, b) => {
-        const toChunks = val => String(val.unit || "").split('.').map(Number);
+      // Optional: sort units naturally by number
+      units.sort((a, b) => parseFloat(a.unit) - parseFloat(b.unit));
 
-        const A = toChunks(a);
-        const B = toChunks(b);
-
-        for (let i = 0; i < Math.max(A.length, B.length); i++) {
-          if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0);
-        }
-
-        return (a.heading || "").localeCompare(b.heading);
-      });
-
-      console.log('✅ Sorted units:', units.map(u => u.unit));
       setCache(cacheKey, units);
     }
 
     return res.json({ subject, units });
-
   } catch (err) {
     console.error("🔥 Error fetching units:", err.message);
     return res.status(500).json({ error: "Internal Server Error", message: err.message });
   }
 });
 
-// 🔥 GET /api/notes?subject=adv-java&unit=Layouts
-tanushree.get('/api/notes', async (req, res) => {
-  const { subject, unit } = req.query;
 
-  if (!subject || !unit) {
-    return res.status(400).json({ error: 'subject and unit are required' });
-  }
+ 
+// 🔥 GET /api/notes?subject=adv-java&docId=02K8xrPH7GcX3eGvyc7i
+tanushree.get('/api/notes', async (req, res) => {
+  const { subject, docId, unit } = req.query;
+
+  if (!subject) return res.status(400).json({ error: 'subject is required' });
+  if (!docId && !unit) return res.status(400).json({ error: 'docId or unit is required' });
 
   try {
-    const cacheKey = `notes_${subject}_${unit}`;
+    const cacheKey = docId ? `notes_${subject}_${docId}` : `notes_${subject}_${unit}`;
     let noteData = getCache(cacheKey);
-    
+
     if (!noteData) {
-      const unitsRef = db.collection('NotesStudy')
-        .doc(subject)
-        .collection('units');
+      const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
 
-      const snapshot = await unitsRef.get();
-
-      const matchDoc = snapshot.docs.find(doc => {
-        const data = doc.data();
-        return String(data.unit).trim() === unit.trim();
-      });
-
-      if (!matchDoc) {
-        return res.status(404).json({
-          error: 'Unit not found',
-          tried: unit,
-          availableUnits: snapshot.docs.map(d => d.data().unit)
-        });
+      let matchDoc;
+      if (docId) {
+        matchDoc = await unitsRef.doc(docId).get();
+        if (!matchDoc.exists) return res.status(404).json({ error: 'Note not found with this docId' });
+      } else {
+        const snapshot = await unitsRef.get();
+        matchDoc = snapshot.docs.find(doc => String(doc.data().unit).trim() === unit.trim());
+        if (!matchDoc) return res.status(404).json({ error: 'Unit not found', tried: unit });
       }
 
       noteData = {
@@ -820,12 +795,11 @@ tanushree.get('/api/notes', async (req, res) => {
         unit: matchDoc.id,
         data: matchDoc.data()
       };
-      
+
       setCache(cacheKey, noteData);
     }
 
     return res.json(noteData);
-
   } catch (err) {
     console.error('🔥 Firestore error:', err);
     return res.status(500).json({ error: 'Something went wrong' });
@@ -833,9 +807,10 @@ tanushree.get('/api/notes', async (req, res) => {
 });
 
 
+
 // edit the notes
 // edit the notes by document ID
-tanushree.patch("/notes/:subject/:docId", async (req, res) => {
+tanushree.patch("/api/notes/:subject/:docId", async (req, res) => {
   const { subject, docId } = req.params;
   const { content, heading, code, unit } = req.body;
 
