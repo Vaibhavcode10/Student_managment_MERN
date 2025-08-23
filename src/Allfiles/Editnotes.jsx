@@ -15,9 +15,12 @@ export default function Editnotes() {
     fetchSubjects,
     fetchUnits,
     note,
+    setNote,
     fetchNote,
     updateNote,
     isLoadingNote,
+    isLoadingUnits,
+    isLoadingSubjects
   } = useNotes();
 
   const [activeUnit, setActiveUnit] = useState(null);
@@ -41,80 +44,77 @@ export default function Editnotes() {
         (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
       );
       const first = sorted[0];
-      if (first?.unit) {
-        setActiveUnit(first.unit);
-        fetchNote(first.unit);
+      if (first?.docId) {
+        setActiveUnit(first.docId);
+        fetchNote(first.docId);
       }
     }
   }, [units, fetchNote]);
 
- useEffect(() => {
-  console.log("Syncing note:", note);
-  if (note) {
-    setEditedHtml(note.content || "");
-    setEditedCode(note.code || "");
-    setEditedUnit(note.unit || "");
-    setEditedHeading(note.heading || "");
-    
-   
-    setActiveUnit(note.docId || note.unit); 
-  }
-}, [note]);
+  useEffect(() => {
+    console.log("Syncing note:", note);
+    if (note) {
+      setEditedHtml(note.content || "");
+      setEditedCode(note.code || "");
+      setEditedUnit(note.unit || "");
+      setEditedHeading(note.heading || "");
+    }
+  }, [note]);
 
-
-  const handleUnitClick = (unitId) => {
-    setActiveUnit(unitId);
-    fetchNote(unitId);
+  const handleUnitClick = (docId) => {
+    console.log("Fetching note with docId:", docId);
+    setActiveUnit(docId);
+    fetchNote(docId);
     setSaveStatus(null);
   };
 
-const saveChanges = async () => {
-  if (!subject || !activeUnit) {
-    console.warn("No subject or unit selected");
-    setSaveStatus("error");
-    setTimeout(() => setSaveStatus(null), 5000);
-    return;
-  }
-
-  const updatedFields = {};
-  if (editedHtml != null) updatedFields.content = editedHtml;
-  if (editedCode != null) updatedFields.code = editedCode;
-  if (editedHeading != null) updatedFields.heading = editedHeading;
-  if (editedUnit != null && Number(editedUnit) !== Number(activeUnit)) {
-    updatedFields.unit = Number(editedUnit);
-  }
-
-  if (Object.keys(updatedFields).length === 0) {
-    console.warn("🟡 Nothing to update.");
-    setSaveStatus("warning");
-    setTimeout(() => setSaveStatus(null), 3000);
-    return;
-  }
-
-  console.log("Saving note:", { subject, docId: activeUnit, updatedFields });
-
-  setIsSaving(true);
-  setSaveStatus(null);
-
-  try {
-    const response = await updateNote(activeUnit, updatedFields, subject);
-
-    if (response.success) {
-      await fetchNote(activeUnit); // Refresh note
-      setSaveStatus("success");
-      console.log(`✅ Note saved successfully! docId: ${activeUnit}`);
-    } else {
-      throw new Error(response.error || "Unknown error");
+  const saveChanges = async () => {
+    if (!subject || !activeUnit) {
+      console.warn("No subject or unit selected");
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 5000);
+      return;
     }
-  } catch (err) {
-    setSaveStatus("error");
-    console.error(`❌ Error saving note for docId: ${activeUnit}`, err.message);
-  } finally {
-    setIsSaving(false);
-    setTimeout(() => setSaveStatus(null), 4000);
-  }
-};
 
+    const updatedFields = {};
+    if (editedHtml != null) updatedFields.content = editedHtml;
+    if (editedCode != null) updatedFields.code = editedCode;
+    if (editedHeading != null) updatedFields.heading = editedHeading;
+    if (editedUnit != null && Number(editedUnit) !== Number(note?.unit)) {
+      updatedFields.unit = Number(editedUnit);
+    }
+
+    if (Object.keys(updatedFields).length === 0) {
+      console.warn("🟡 Nothing to update.");
+      setSaveStatus("warning");
+      setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
+
+    console.log("Saving note:", { subject, docId: activeUnit, updatedFields });
+
+    setIsSaving(true);
+    setSaveStatus(null);
+
+    try {
+      const noteData = { docId: activeUnit };
+      const response = await updateNote(noteData, updatedFields);
+
+      if (response.success) {
+        await fetchNote(activeUnit);
+        setSaveStatus("success");
+        console.log(`✅ Note saved successfully! docId: ${activeUnit}`);
+      } else {
+        throw new Error(response.error || "Unknown error");
+      }
+    } catch (err) {
+      setSaveStatus("error");
+      console.error(`❌ Error saving note for docId: ${activeUnit}`, err.message);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
+  };
 
   const sortedUnits = [...units].sort(
     (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
@@ -175,55 +175,63 @@ const saveChanges = async () => {
             theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
           }`}
         >
-          <select
-            onChange={(e) => {
-              fetchUnits(e.target.value);
-              setActiveUnit(null);
-              setSaveStatus(null);
-            }}
-            value={subject}
-            className={`w-full p-2.5 mb-4 rounded-md border text-sm transition-colors ${
-              theme === "light"
-                ? "bg-white border-gray-300 text-gray-900"
-                : "bg-gray-800 border-gray-600 text-white"
-            }`}
-          >
-            <option value="">-- Select Subject --</option>
-           {subjects.map((subj) => (
-  <option key={subj} value={subj} className="text-base text-black dark:text-white">
-    {subjectNameMap[subj] || subj}
-  </option>
-))}
-
-          </select>
+          {isLoadingSubjects ? (
+            <div className="p-4 text-gray-400 italic">Loading subjects...</div>
+          ) : (
+            <select
+              onChange={(e) => {
+                fetchUnits(e.target.value);
+                setActiveUnit(null);
+                setNote(null);
+                setSaveStatus(null);
+              }}
+              value={subject}
+              className={`w-full p-2.5 mb-4 rounded-md border text-sm transition-colors ${
+                theme === "light"
+                  ? "bg-white border-gray-300 text-gray-900"
+                  : "bg-gray-800 border-gray-600 text-white"
+              }`}
+            >
+              <option value="">-- Select Subject --</option>
+              {subjects.map((subj) => (
+                <option key={subj} value={subj} className="text-base text-black dark:text-white">
+                  {subjectNameMap[subj] || subj}
+                </option>
+              ))}
+            </select>
+          )}
 
           <div className="flex-1 overflow-y-auto my-scrollable-div">
-            <ul className="list-none p-0 m-0 text-left">
-{sortedUnits.map((unit, idx) => {
-  // Combine unit.unit + index + heading to guarantee unique key
-  const unitId = unit.unit != null ? `${unit.unit}-${idx}` : `unit-${idx}-${unit.heading || ""}`;
-  const isActive = activeUnit === unit.unit; // activeUnit can still be the plain unit value
+            {isLoadingUnits ? (
+              <div className="p-4 text-gray-400 italic">Loading units...</div>
+            ) : sortedUnits.length === 0 ? (
+              <p>No units available</p>
+            ) : (
+              <ul className="list-none p-0 m-0 text-left">
+                {sortedUnits.map((unit, idx) => {
+                  const unitId = unit.docId ? `${unit.docId}-${idx}` : `unit-${idx}-${unit.heading || ""}`;
+                  const isActive = activeUnit === unit.docId;
 
-  return (
-    <li
-      key={unitId}
-      onClick={() => handleUnitClick(unit.unit)}
-      className={`cursor-pointer mb-2 p-3 rounded-md border text-sm transition-all duration-200 hover:shadow-sm ${
-        isActive
-          ? theme === "light"
-            ? "bg-blue-100 border-blue-300 text-blue-900"
-            : "bg-blue-900 border-blue-600 text-blue-100"
-          : theme === "light"
-            ? "bg-gray-50 border-gray-300 hover:bg-gray-100"
-            : "bg-gray-800 border-gray-700 hover:bg-gray-700"
-      }`}
-    >
-      {getHeadingDisplay(unit)}
-    </li>
-  );
-})}
-
-            </ul>
+                  return (
+                    <li
+                      key={unitId}
+                      onClick={() => handleUnitClick(unit.docId)}
+                      className={`cursor-pointer mb-2 p-3 rounded-md border text-sm transition-all duration-200 hover:shadow-sm ${
+                        isActive
+                          ? theme === "light"
+                            ? "bg-blue-100 border-blue-300 text-blue-900"
+                            : "bg-blue-900 border-blue-600 text-blue-100"
+                          : theme === "light"
+                            ? "bg-gray-50 border-gray-300 hover:bg-gray-100"
+                            : "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                      }`}
+                    >
+                      {getHeadingDisplay(unit)}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         </div>
       )}

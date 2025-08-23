@@ -709,6 +709,7 @@ tanushree.get("/getmcqcount", async (req, res) => {
 
  //get subject
  
+// 🔥 GET /api/subjects
 tanushree.get('/api/subjects', async (req, res) => {
   try {
     const cacheKey = 'notes_subjects';
@@ -727,7 +728,6 @@ tanushree.get('/api/subjects', async (req, res) => {
   }
 });
 
- 
 // 🔥 GET /api/units?subject=adv-java
 tanushree.get('/api/units', async (req, res) => {
   const { subject } = req.query;
@@ -747,12 +747,12 @@ tanushree.get('/api/units', async (req, res) => {
         return {
           heading: data.heading || `Untitled Unit (${data.unit || doc.id})`,
           unit: data.unit || "",
-          docId: doc.id  // ✅ include docId for frontend to use when editing
+          docId: doc.id  // ✅ Include docId for frontend
         };
       });
 
-      // Optional: sort units naturally by number
-      units.sort((a, b) => parseFloat(a.unit) - parseFloat(b.unit));
+      // Sort units naturally by number
+      units.sort((a, b) => parseFloat(a.unit || 999) - parseFloat(b.unit || 999));
 
       setCache(cacheKey, units);
     }
@@ -764,48 +764,108 @@ tanushree.get('/api/units', async (req, res) => {
   }
 });
 
-
- 
 // 🔥 GET /api/notes?subject=adv-java&docId=02K8xrPH7GcX3eGvyc7i
+// OR /api/notes?subject=adv-java&unit=heading_text (fallback for old calls)
 tanushree.get('/api/notes', async (req, res) => {
   const { subject, docId, unit } = req.query;
 
   if (!subject) return res.status(400).json({ error: 'subject is required' });
-  if (!docId && !unit) return res.status(400).json({ error: 'docId or unit is required' });
+  if (!docId && !unit) return res.status(400).json({ error: 'docId or unit heading is required' });
 
   try {
     const cacheKey = docId ? `notes_${subject}_${docId}` : `notes_${subject}_${unit}`;
-    let noteData = getCache(cacheKey);
+    let result = getCache(cacheKey);
 
-    if (!noteData) {
+    if (!result) {
       const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
 
       let matchDoc;
       if (docId) {
+        // Primary: Find by docId
         matchDoc = await unitsRef.doc(docId).get();
-        if (!matchDoc.exists) return res.status(404).json({ error: 'Note not found with this docId' });
+        if (!matchDoc.exists) {
+          return res.status(404).json({ error: 'Note not found with this docId' });
+        }
       } else {
+        // Fallback: Find by heading
         const snapshot = await unitsRef.get();
-        matchDoc = snapshot.docs.find(doc => String(doc.data().unit).trim() === unit.trim());
-        if (!matchDoc) return res.status(404).json({ error: 'Unit not found', tried: unit });
+        matchDoc = snapshot.docs.find(doc => {
+          const heading = doc.data().heading;
+          return heading && heading.toLowerCase() === unit.toLowerCase();
+        });
+        
+        if (!matchDoc) {
+          return res.status(404).json({ error: 'Unit not found', tried: unit });
+        }
       }
 
-      noteData = {
+      const data = matchDoc.data();
+      
+      // ✅ Clean response structure
+      result = {
         subject,
-        unit: matchDoc.id,
-        data: matchDoc.data()
+        docId: matchDoc.id,  // ✅ Always return docId
+        unit: data.unit || "",  // ✅ Unit number for display
+        heading: data.heading || "",
+        content: data.content || "",
+        code: data.code || ""
       };
 
-      setCache(cacheKey, noteData);
+      setCache(cacheKey, result);
     }
 
-    return res.json(noteData);
+    return res.json(result);
   } catch (err) {
     console.error('🔥 Firestore error:', err);
     return res.status(500).json({ error: 'Something went wrong' });
   }
 });
 
+// 🔥 PATCH /api/notes/:subject/:docId
+tanushree.patch('/api/notes/:subject/:docId', async (req, res) => {
+  const { subject, docId } = req.params;
+  const updatedFields = req.body;
+
+  if (!subject || !docId) {
+    return res.status(400).json({ error: 'Subject and docId are required' });
+  }
+
+  if (!updatedFields || Object.keys(updatedFields).length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  try {
+    const docRef = db.collection('NotesStudy').doc(subject).collection('units').doc(docId);
+    
+    // Check if document exists
+    const docSnapshot = await docRef.get();
+    if (!docSnapshot.exists) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+
+    // Update the document
+    await docRef.update(updatedFields);
+
+    // Invalidate relevant caches
+    const cacheKeys = [
+      `notes_${subject}_${docId}`,
+      `units_${subject}`
+    ];
+    cacheKeys.forEach(key => clearCache(key));
+
+    console.log(`✅ Note updated: ${subject}/${docId}`, updatedFields);
+    res.json({ 
+      success: true, 
+      message: 'Note updated successfully',
+      docId,
+      subject 
+    });
+
+  } catch (err) {
+    console.error('🔥 Error updating note:', err);
+    res.status(500).json({ error: 'Failed to update note' });
+  }
+});
 
 
 // edit the notes

@@ -132,10 +132,12 @@ export const NotesProvider = ({ children }) => {
       });
 
       // Clean up headings for all units
-      const cleanedUnits = sorted.map(unit => ({
-        ...unit,
-        displayHeading: cleanHeading(unit.unit, unit.heading)
-      }));
+    const cleanedUnits = sorted.map(unit => ({
+  ...unit,
+  displayHeading: cleanHeading(unit.unit, unit.heading),
+  docId: unit.docId  // ✅ include actual Firestore docId
+}));
+
 
       // Cache the result
       cache.current.units.set(selectedSubject, cleanedUnits);
@@ -151,13 +153,12 @@ export const NotesProvider = ({ children }) => {
 
   // 📄 Fetch note data with caching
  
-const fetchNote = useCallback(async (unitHeading) => {
-  if (!subject || !unitHeading) return;
+const fetchNote = useCallback(async (docId) => {
+  if (!subject || !docId) return;
 
-  const cacheKey = `${subject}-${unitHeading}`;
+  const cacheKey = `${subject}-${docId}`;
 
-  if (isLoadingNote) return;
-
+  // Return cached note if available
   const cachedNote = cache.current.notes.get(cacheKey);
   if (cachedNote) {
     setNote(cachedNote);
@@ -166,22 +167,21 @@ const fetchNote = useCallback(async (unitHeading) => {
 
   setIsLoadingNote(true);
   try {
-    const res = await fetch(
-      `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
-    );
+    const res = await fetch(`${BASE_URL}/notes?subject=${subject}&docId=${docId}`);
     const data = await res.json();
 
-    if (!data?.data) {
+    if (!data?.docId) {
       setNote(null);
       return;
     }
 
-    const rawNote = data.data;
-
-    if (rawNote?.code) rawNote.code = hexToString(rawNote.code);
-
-    // ✅ Store docId from API
-    rawNote.docId = data.unit || rawNote.docId || unitHeading;
+    const rawNote = {
+      docId: data.docId,
+      unit: data.unit || "",
+      heading: data.heading || "",
+      content: data.content || "",
+      code: data.code ? hexToString(data.code) : ""
+    };
 
     cache.current.notes.set(cacheKey, rawNote);
     setNote(rawNote);
@@ -192,7 +192,9 @@ const fetchNote = useCallback(async (unitHeading) => {
   } finally {
     setIsLoadingNote(false);
   }
-}, [subject, isLoadingNote]);
+}, [subject]);
+
+
 
 // Updated updateNote function
 const updateNote = async (noteData, updatedFields) => {
@@ -214,12 +216,13 @@ const updateNote = async (noteData, updatedFields) => {
       throw new Error(data.error || `HTTP ${res.status}: Failed to update note`);
     }
 
-    // Invalidate cache
-    const cacheKey = `${subject}-${noteData.unit || noteData.docId}`;
+    // Invalidate cache for this note
+    const cacheKey = `${subject}-${noteData.docId}`;
     cache?.current?.notes?.delete(cacheKey);
 
     console.log("✅ Note updated successfully:", data);
     return { success: true, message: data.message || "Note updated" };
+
   } catch (err) {
     console.error("❌ Error updating note:", err.message);
     return { success: false, error: err.message };
@@ -243,7 +246,7 @@ const updateNote = async (noteData, updatedFields) => {
         isLoadingUnits,
         isLoadingNote,
         // Functions
-        testFetchNote,
+         
         fetchSubjects,
         fetchUnits,
         fetchNote,
