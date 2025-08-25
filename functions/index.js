@@ -7,7 +7,7 @@ const axios = require("axios");
 
 admin.initializeApp();
 const db = admin.firestore();
-const tanushree = express();
+const vaibhav = express();
 
 // ✅ CACHING LAYER - Add this to reduce repeated reads
 const cache = new Map();
@@ -27,13 +27,23 @@ function getCache(key) {
   return item.value;
 }
 
-tanushree.use(cors({
-  origin: ["http://localhost:5173", "https://chedotech-85bbf.web.app"],
-  methods: ["GET", "POST", "OPTIONS","PATCH"],
+
+vaibhav.use(cors({
+  origin: "*", // allow any origin
+  methods: "*", // allow all HTTP methods: GET, POST, DELETE, PATCH, PUT, OPTIONS, etc.
+  allowedHeaders: "*", // allow all headers
   credentials: true
 }));
 
-tanushree.use(express.json());
+// Optional: handle preflight for all routes
+vaibhav.options("*", (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.status(204).send("");
+});
+
+vaibhav.use(express.json());
 
 function computeResults(student) {
   const total = student.phy + student.chem + student.math;
@@ -49,7 +59,7 @@ function generateRandomId(length = 12) {
 }
 
 // ✅ Add student
-tanushree.post("/student", async (req, res) => {
+vaibhav.post("/student", async (req, res) => {
   try {
     const data = computeResults(req.body);
     const docRef = db.collection("studentsData").doc(data.email);
@@ -62,7 +72,7 @@ tanushree.post("/student", async (req, res) => {
 });
 
 // ✅ OPTIMIZED: Get all students with pagination and caching
-tanushree.get("/students", async (req, res) => {
+vaibhav.get("/students", async (req, res) => {
   try {
     const { limit = 50, startAfter } = req.query;
     const cacheKey = `students_${limit}_${startAfter || 'first'}`;
@@ -94,7 +104,7 @@ tanushree.get("/students", async (req, res) => {
 });
 
 // ✅ Get student by email
-tanushree.get("/student/:email", async (req, res) => {
+vaibhav.get("/student/:email", async (req, res) => {
   try {
     const email = req.params.email;
     const doc = await db.collection("studentsData").doc(email).get();
@@ -107,7 +117,7 @@ tanushree.get("/student/:email", async (req, res) => {
 });
 
 // ✅ Update student
-tanushree.put("/student/:email", async (req, res) => {
+vaibhav.put("/student/:email", async (req, res) => {
   try {
     const email = req.params.email;
     const data = computeResults(req.body);
@@ -120,7 +130,7 @@ tanushree.put("/student/:email", async (req, res) => {
 });
 
 // ✅ Delete student
-tanushree.delete("/student/:email", async (req, res) => {
+vaibhav.delete("/student/:email", async (req, res) => {
   try {
     const email = req.params.email;
     const docRef = db.collection("studentsData").doc(email);
@@ -135,7 +145,7 @@ tanushree.delete("/student/:email", async (req, res) => {
 });
 
 // ✅ Register user
-tanushree.post("/register", async (req, res) => {
+vaibhav.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -164,7 +174,7 @@ tanushree.post("/register", async (req, res) => {
 });
 
 // ✅ Login: Check user auth
-tanushree.post("/login", async (req, res) => {
+vaibhav.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -224,7 +234,7 @@ async function verifySuperAdmin(superEmail, superPassword) {
 }
 
 // ✅ OPTIMIZED: Promote to admin - Use direct document access
-tanushree.put("/make-admin", async (req, res) => {
+vaibhav.put("/make-admin", async (req, res) => {
   const { superEmail, superPassword, email } = req.body;
 
   if (!superEmail || !superPassword || !email) {
@@ -271,7 +281,7 @@ tanushree.put("/make-admin", async (req, res) => {
 });
 
 // ✅ OPTIMIZED: Demote to student - Use direct document access
-tanushree.put("/make-student", async (req, res) => {
+vaibhav.put("/make-student", async (req, res) => {
   const { superEmail, superPassword, email } = req.body;
 
   if (!superEmail || !superPassword || !email) {
@@ -319,7 +329,7 @@ tanushree.put("/make-student", async (req, res) => {
 
 
 // ✅ Get role of the logged-in user by email
-tanushree.get("/role/:email", async (req, res) => {
+vaibhav.get("/role/:email", async (req, res) => {
   try {
     const email = req.params.email;
 
@@ -347,7 +357,7 @@ tanushree.get("/role/:email", async (req, res) => {
 });
 
 // ✅ Change password route
-tanushree.post("/change-password", async (req, res) => {
+vaibhav.post("/change-password", async (req, res) => {
   try {
     const { email, oldPassword, newPassword } = req.body;
 
@@ -383,7 +393,7 @@ tanushree.post("/change-password", async (req, res) => {
 });
 
 // ✅ OPTIMIZED: Get Admins with caching
-tanushree.get("/admins", async (req, res) => {
+vaibhav.get("/admins", async (req, res) => {
   try {
     const cacheKey = 'admins_list';
     let admins = getCache(cacheKey);
@@ -415,7 +425,7 @@ tanushree.get("/admins", async (req, res) => {
 });
 
 // ✅ Add a complaint to "complaints" collection
-tanushree.post("/complaints", async (req, res) => {
+vaibhav.post("/complaints", async (req, res) => {
   try {
     const { email, complaint } = req.body;
 
@@ -437,7 +447,7 @@ tanushree.post("/complaints", async (req, res) => {
 });
 
 // ✅ Get all complaints for a specific user
-tanushree.get("/complaints/:email", async (req, res) => {
+vaibhav.get("/complaints/:email", async (req, res) => {
   const { email } = req.params;
 
   if (!email) {
@@ -464,7 +474,7 @@ tanushree.get("/complaints/:email", async (req, res) => {
 });
 
 // ✅ OPTIMIZED: Get all problems with pagination
-tanushree.get("/getallproblems", async (req, res) => {
+vaibhav.get("/getallproblems", async (req, res) => {
   try {
     const { limit = 50, startAfter } = req.query;
     const cacheKey = `problems_${limit}_${startAfter || 'first'}`;
@@ -518,7 +528,7 @@ tanushree.get("/getallproblems", async (req, res) => {
 
 // ✅ Get all mcqs
 // GET single MCQ by subject and mcq number
-tanushree.get("/getmcq", async (req, res) => {
+vaibhav.get("/getmcq", async (req, res) => {
   try {
     const { subject, id } = req.query;
 
@@ -590,7 +600,7 @@ tanushree.get("/getmcq", async (req, res) => {
 });
 
 // 🎲 Get random MCQ from a subject
-tanushree.get("/getrandom", async (req, res) => {
+vaibhav.get("/getrandom", async (req, res) => {
   try {
     const { subject } = req.query;
 
@@ -649,7 +659,7 @@ tanushree.get("/getrandom", async (req, res) => {
 });
 
 // ✅ OPTIMIZED: Get MCQ count by subject with caching
-tanushree.get("/getmcqcount", async (req, res) => {
+vaibhav.get("/getmcqcount", async (req, res) => {
   try {
     const { subject } = req.query;
     
@@ -710,7 +720,7 @@ tanushree.get("/getmcqcount", async (req, res) => {
  //get subject
  
 // 🔥 GET /api/subjects
-tanushree.get('/api/subjects', async (req, res) => {
+vaibhav.get('/api/subjects', async (req, res) => {
   try {
     const cacheKey = 'notes_subjects';
     let subjects = getCache(cacheKey);
@@ -729,7 +739,7 @@ tanushree.get('/api/subjects', async (req, res) => {
 });
 
 // 🔥 GET /api/units?subject=adv-java
-tanushree.get('/api/units', async (req, res) => {
+vaibhav.get('/api/units', async (req, res) => {
   const { subject } = req.query;
 
   if (!subject) return res.status(400).json({ error: "Subject is required" });
@@ -766,7 +776,7 @@ tanushree.get('/api/units', async (req, res) => {
 
 // 🔥 GET /api/notes?subject=adv-java&docId=02K8xrPH7GcX3eGvyc7i
 // OR /api/notes?subject=adv-java&unit=heading_text (fallback for old calls)
-tanushree.get('/api/notes', async (req, res) => {
+vaibhav.get('/api/notes', async (req, res) => {
   const { subject, docId, unit } = req.query;
 
   if (!subject) return res.status(400).json({ error: 'subject is required' });
@@ -822,7 +832,7 @@ tanushree.get('/api/notes', async (req, res) => {
 });
 
 // 🔥 PATCH /api/notes/:subject/:docId
-tanushree.patch('/api/notes/:subject/:docId', async (req, res) => {
+vaibhav.patch('/api/notes/:subject/:docId', async (req, res) => {
   const { subject, docId } = req.params;
   const updatedFields = req.body;
 
@@ -870,7 +880,7 @@ tanushree.patch('/api/notes/:subject/:docId', async (req, res) => {
 
 // edit the notes
 // edit the notes by document ID
-tanushree.patch("/api/notes/:subject/:docId", async (req, res) => {
+vaibhav.patch("/api/notes/:subject/:docId", async (req, res) => {
   const { subject, docId } = req.params;
   const { content, heading, code, unit } = req.body;
 
@@ -922,7 +932,7 @@ tanushree.patch("/api/notes/:subject/:docId", async (req, res) => {
 // y
 
 // ✅ AI Ask endpoint
-tanushree.post("/api/ask-ai", async (req, res) => {
+vaibhav.post("/api/ask-ai", async (req, res) => {
   const { question } = req.body;
 
   if (!question) {
@@ -957,7 +967,7 @@ tanushree.post("/api/ask-ai", async (req, res) => {
 });
 
 // ✅ POST /create - Create dynamic MCQ test
-tanushree.post('/create', async (req, res) => {
+vaibhav.post('/create', async (req, res) => {
   try {
     const { subject, testName, mcqData } = req.body;
 
@@ -1002,7 +1012,7 @@ tanushree.post('/create', async (req, res) => {
 });
 
 // ✅ GET /customquiz/:subject/:docId - Get specific custom quiz
-tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
+vaibhav.get('/customquiz/:subject/:docId', async (req, res) => {
   try {
     const { subject, docId } = req.params;
 
@@ -1054,7 +1064,7 @@ tanushree.get('/customquiz/:subject/:docId', async (req, res) => {
 });
 
 // ✅ OPTIMIZED: Fetch all tests across all subjects with caching
-tanushree.get("/alltests", async (req, res) => {
+vaibhav.get("/alltests", async (req, res) => {
   try {
     const cacheKey = 'all_tests';
     let allTests = getCache(cacheKey);
@@ -1090,10 +1100,87 @@ tanushree.get("/alltests", async (req, res) => {
   }
 });
 
+//delet
+vaibhav.delete("/delete/:subject/:testId", async (req, res) => {
+  const { subject, testId } = req.params;
+  try {
+    const testRef = db.collection("DynamicMcq").doc(subject).collection("tests").doc(testId);
+    await testRef.delete();
+    res.status(200).json({ message: "Test deleted successfully" });
+  } catch (err) {
+    console.error("🔥 Error deleting test:", err.message);
+    res.status(500).json({ error: "Failed to delete test." });
+  }
+});
+
+// GET /test/:subject/:testId
+vaibhav.get("/test/:subject/:testId", async (req, res) => {
+  const { subject, testId } = req.params;
+
+  try {
+    const testRef = db
+      .collection("DynamicMcq")
+      .doc(subject)
+      .collection("tests")
+      .doc(testId);
+
+    const docSnap = await testRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ error: "Test not found" });
+    }
+
+    const testData = docSnap.data();
+
+    res.json({
+      testId: testId,
+      subject: subject,
+      ...testData, // contains testName, mcqData, etc.
+    });
+  } catch (err) {
+    console.error("Failed to fetch test:", err);
+    res.status(500).json({ error: "Failed to fetch test" });
+  }
+});
+
+// update test 
+// PATCH /update/:subject/:testId
+vaibhav.patch("/update/:subject/:testId", async (req, res) => {
+  const { subject, testId } = req.params;
+  const { testName, mcqData } = req.body; // whichever fields you want to allow updating
+
+  try {
+    if (!testName && !mcqData) {
+      return res.status(400).json({ error: "Nothing to update" });
+    }
+
+    const testRef = db
+      .collection("DynamicMcq")
+      .doc(subject)
+      .collection("tests")
+      .doc(testId);
+
+    // Prepare only the fields provided
+    const updateData = {};
+    if (testName) updateData.testName = testName;
+    if (mcqData) updateData.mcqData = mcqData;
+
+    await testRef.update(updateData);
+
+    res.json({
+      message: "Test updated successfully",
+      updated: updateData,
+    });
+  } catch (err) {
+    console.error("Failed to update test:", err);
+    res.status(500).json({ error: "Failed to update test" });
+  }
+});
+
 // ✅ Test route 
-tanushree.get("/test", (req, res) => {
+vaibhav.get("/test", (req, res) => {
   res.send("Hello Tanushree");
 });
 
 // ✅ Export the Express app as Firebase Function
-exports.api = functions.https.onRequest(tanushree);
+exports.api = functions.https.onRequest(vaibhav);

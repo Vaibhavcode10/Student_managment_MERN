@@ -402,7 +402,7 @@ const saveChanges = async () => {
           ) : mode === "view" ? (
             <div
               className={`h-full w-full overflow-auto my-scrollable-div ${
-                theme === "light" ? "bg-white" : "bg-[#1e1e1e]"
+                theme === "light" ? "bg-whiste" : "bg-[#1e1e1e]"
               }`}
             >
               {editedHtml || editedCode ? (

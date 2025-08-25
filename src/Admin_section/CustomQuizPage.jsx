@@ -273,108 +273,88 @@ const CustomMcqPage = () => {
           </div>
         )}
 
-        {/* Questions */}
-        <div className="grid grid-cols-1 gap-1 text-left">
-          
-          {quizData.mcqData.map((q, index) => {
-            const question = decodeIfHex(q.question);
-            const options = q.options.map(decodeIfHex);
-            const correctAnswer = decodeIfHex(q.answer || q.correctAnswer);
-            const isCorrect = submitted && userAnswers[index] === correctAnswer;
-            const isWrong = submitted && userAnswers[index] && userAnswers[index] !== correctAnswer;
+      {/* Questions */}
+<div className="grid grid-cols-1 gap-1 text-left">
+  {quizData.mcqData.map((q, index) => {
+    const question = decodeIfHex(q.question);
+    const options = q.options.map(decodeIfHex);
+    const correctAnswer = decodeIfHex(q.answer || q.correctAnswer);
+    const isCorrect = submitted && userAnswers[index] === correctAnswer;
+    const isWrong = submitted && userAnswers[index] && userAnswers[index] !== correctAnswer;
+
+    return (
+      <div
+        key={q.id || index} // ✅ unique key for each question
+        className={`w-full transition-all duration-300 ${submitted
+          ? isCorrect
+            ? "bg-green-50 border-green-200"
+            : isWrong
+              ? "bg-red-50 border-red-200"
+              : "bg-gray-50 border-gray-200"
+          : "bg-white border-gray-200"
+        }`}
+      >
+        <div className="text-xs text-gray-500 mb-1 text-end me-2">
+          ID: {q.id} &nbsp;&bull;&nbsp; Subtopic: {q.subtopic}
+        </div>
+
+        <div className="flex items-start gap-3 ms-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${submitted
+            ? isCorrect
+              ? 'bg-emerald-500 text-white'
+              : isWrong
+                ? 'bg-red-500 text-white'
+                : 'bg-gray-400 text-white'
+            : userAnswers[index]
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-200 text-gray-600'
+          }`}>
+            {index + 1}
+          </div>
+          <h2 className="text-base font-semibold text-gray-800 mt-1">
+            {question}
+          </h2>
+        </div>
+
+        {/* Options */}
+        <div className="grid grid-cols-2 gap-2 ms-2 me-2 pb-3">
+          {options.map((opt) => {
+            const isSelected = userAnswers[index] === opt;
+            const isCorrectOption = opt === correctAnswer;
 
             return (
-            <>
-              <div
-                key={index}
-                className={`w-full    transition-all duration-300  ${submitted
-                  ? isCorrect
-                    ? "bg-green-50 border-green-200"
-                    : isWrong
-                      ? "bg-red-50 border-red-200"
-                      : "bg-gray-50 border-gray-200"
-                  : "bg-white border-gray-200"
-                  }`}
+              <label
+                key={`${q.id}-${opt}`} // ✅ unique key for each option
+                className={`flex items-center px-4 py-2 rounded-lg border cursor-pointer transition-colors ${submitted && isCorrectOption
+                  ? "border-green-500 bg-green-100 text-green-800 font-semibold"
+                  : submitted && isSelected && !isCorrectOption
+                    ? "border-red-400 bg-red-100 text-red-700 line-through"
+                    : isSelected
+                      ? "border-blue-500 bg-blue-100 text-blue-800"
+                      : "border-gray-300 hover:bg-gray-100"
+                }`}
               >
-                
-                <div className="text-xs text-gray-500 mb-1 text-end me-2">
-                  ID: {q.id} &nbsp;&bull;&nbsp; Subtopic: {q.subtopic}
-                </div>
-
-                <div className="flex items-start gap-3  ms-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${submitted
-                    ? isCorrect
-                      ? 'bg-emerald-500 text-white'
-                      : isWrong
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-400 text-white'
-                    : userAnswers[index]
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                    }`}>
-                    {index + 1}
-                  </div>
-                  <h2 className="text-base font-semibold text-gray-800 mt-1">
-                    {question}
-                  </h2>
-                </div>
-
-                {submitted && (
-                  <div className="mb-2 ml-11">
-                    {isCorrect ? (
-                      <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
-                        <CheckCircle className="w-4 h-4" />
-                        Correct Answer!
-                      </div>
-                    ) : isWrong ? (
-                      <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
-                        <XCircle className="w-4 h-4" />
-                        Incorrect - Correct answer: {correctAnswer}
-                      </div>
-                    ) : (
-                      <div className="text-gray-500 text-sm">Not answered - Correct answer: {correctAnswer}</div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2 ms-2 me-2 pb-3">
-                  {options.map((opt, i) => {
-                    const isSelected = userAnswers[index] === opt;
-                    const isCorrectOption = opt === correctAnswer;
-
-                    return (
-                      <label
-                        key={i}
-                        className={`flex items-center px-4 py-2 rounded-lg border cursor-pointer transition-colors ${submitted && isCorrectOption
-                          ? "border-green-500 bg-green-100 text-green-800 font-semibold"
-                          : submitted && isSelected && !isCorrectOption
-                            ? "border-red-400 bg-red-100 text-red-700 line-through"
-                            : isSelected
-                              ? "border-blue-500 bg-blue-100 text-blue-800"
-                              : "border-gray-300 hover:bg-gray-100"
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${index}`}
-                          value={opt}
-                          disabled={submitted}
-                          checked={isSelected}
-                          onChange={() => handleOptionChange(index, opt)}
-                          className="mr-3 accent-blue-600"
-                        />
-                        <span>{opt}</span>
-                        {submitted && isCorrectOption && <CheckCircle className="w-4 h-4 text-green-600 ml-auto" />}
-                        {submitted && isSelected && !isCorrectOption && <XCircle className="w-4 h-4 text-red-600 ml-auto" />}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
+                <input
+                  type="radio"
+                  name={`question-${index}`}
+                  value={opt}
+                  disabled={submitted}
+                  checked={isSelected}
+                  onChange={() => handleOptionChange(index, opt)}
+                  className="mr-3 accent-blue-600"
+                />
+                <span>{opt}</span>
+                {submitted && isCorrectOption && <CheckCircle className="w-4 h-4 text-green-600 ml-auto" />}
+                {submitted && isSelected && !isCorrectOption && <XCircle className="w-4 h-4 text-red-600 ml-auto" />}
+              </label>
             );
           })}
         </div>
+      </div>
+    );
+  })}
+</div>
+
 
         {!submitted && (
           <div className="text-center mt-3 mb-2.5">
