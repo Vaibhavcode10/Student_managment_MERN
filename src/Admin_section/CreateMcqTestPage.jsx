@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Eye, Edit, Trash2, RefreshCw, Share2, Copy, Check } from "lucide-react";
+import {
+  Eye,
+  Edit,
+  Trash2,
+  RefreshCw,
+  Share2,
+  Copy,
+  Check,
+  Plus,
+} from "lucide-react";
 
 // Convert string to hex
 const stringToHex = (str) =>
@@ -39,7 +48,8 @@ const CreateMcqTestPage = () => {
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [recentlyCreatedLink, setRecentlyCreatedLink] = useState(null);
   const [copiedStates, setCopiedStates] = useState({});
-
+  const [aimcq, setAimcq] = useState([]);
+  const [genratedmcq, setGenratedmcq] = useState([]);
   const API_BASE = "https://api-e5q6islzdq-uc.a.run.app";
 
   const fetchTests = async () => {
@@ -115,7 +125,9 @@ const CreateMcqTestPage = () => {
           id: q.id || `q${index + 1}`,
           subtopic: q.subtopic,
           question: isHex(q.question) ? q.question : stringToHex(q.question),
-          options: q.options.map((opt) => (isHex(opt) ? opt : stringToHex(opt))),
+          options: q.options.map((opt) =>
+            isHex(opt) ? opt : stringToHex(opt)
+          ),
           answer: isHex(q.answer) ? q.answer : stringToHex(q.answer),
         };
       });
@@ -157,7 +169,9 @@ const CreateMcqTestPage = () => {
     try {
       await axios.delete(`${API_BASE}/delete/${subject}/${testId}`);
       setTests((prevTests) =>
-        prevTests.filter((test) => !(test.testId === testId && test.subject === subject))
+        prevTests.filter(
+          (test) => !(test.testId === testId && test.subject === subject)
+        )
       );
       alert("Test deleted successfully!");
     } catch (err) {
@@ -211,7 +225,9 @@ const CreateMcqTestPage = () => {
             id: q.id,
             subtopic: q.subtopic,
             question: isHex(q.question) ? hexToString(q.question) : q.question,
-            options: q.options.map((opt) => (isHex(opt) ? hexToString(opt) : opt)),
+            options: q.options.map((opt) =>
+              isHex(opt) ? hexToString(opt) : opt
+            ),
             answer: isHex(q.answer) ? hexToString(q.answer) : q.answer,
           }));
           setJsonInput(JSON.stringify(readableData, null, 2));
@@ -236,7 +252,9 @@ const CreateMcqTestPage = () => {
 
       // Add testName if changed
       const originalTest = tests.find(
-        (t) => t.testId === currentEditTest.testId && t.subject === currentEditTest.subject
+        (t) =>
+          t.testId === currentEditTest.testId &&
+          t.subject === currentEditTest.subject
       );
       if (testName !== originalTest?.testName) {
         updateData.testName = testName;
@@ -264,15 +282,21 @@ const CreateMcqTestPage = () => {
             id: q.id || `q${index + 1}`,
             subtopic: q.subtopic,
             question: isHex(q.question) ? q.question : stringToHex(q.question),
-            options: q.options.map((opt) => (isHex(opt) ? opt : stringToHex(opt))),
+            options: q.options.map((opt) =>
+              isHex(opt) ? opt : stringToHex(opt)
+            ),
             answer: isHex(q.answer) ? q.answer : stringToHex(q.answer),
           };
         });
 
         // Compare with original mcqData to detect changes
-        const originalDetails = await fetchTestDetails(currentEditTest.subject, currentEditTest.testId);
+        const originalDetails = await fetchTestDetails(
+          currentEditTest.subject,
+          currentEditTest.testId
+        );
         const originalMcqData = originalDetails.mcqData || [];
-        const hasMcqChanges = JSON.stringify(transformedData) !== JSON.stringify(originalMcqData);
+        const hasMcqChanges =
+          JSON.stringify(transformedData) !== JSON.stringify(originalMcqData);
 
         if (hasMcqChanges) {
           updateData.mcqData = transformedData;
@@ -293,7 +317,8 @@ const CreateMcqTestPage = () => {
       if (updateData.testName) {
         setTests((prevTests) =>
           prevTests.map((test) =>
-            test.testId === currentEditTest.testId && test.subject === currentEditTest.subject
+            test.testId === currentEditTest.testId &&
+            test.subject === currentEditTest.subject
               ? { ...test, testName: updateData.testName }
               : test
           )
@@ -332,46 +357,61 @@ const CreateMcqTestPage = () => {
     }
   };
 
+  //ai mcq genrator
+
+  const fetchAIMCQs = async (question) => {
+    if (!question) return;
+
+    try {
+      const res = await axios.post(`${API_BASE}/api/ask-ai`, { question });
+
+      let aiAnswer = res.data.answer;
+
+      // Try parsing AI response to JSON
+      try {
+        aiAnswer = JSON.parse(aiAnswer);
+      } catch (parseErr) {
+        console.warn("AI response is not valid JSON:", parseErr);
+        // Keep as string if parsing fails
+      }
+
+      setAimcq(aiAnswer);
+    } catch (err) {
+      console.error("Failed to fetch AI MCQs:", err);
+      alert("Failed to generate MCQs from AI");
+    }
+  };
+
+  const handleGenerateMCQs = async () => {
+    if (!subject) {
+      alert("Please enter the subject at the top first!");
+      return;
+    }
+    if (!aimcq) {
+      alert("Please enter a prompt for AI MCQ generation");
+      return;
+    }
+
+    const question = `${subject}: ${aimcq}`; // Combine subject + user prompt
+    await fetchAIMCQs(question, setGenratedmcq);
+    console.log("AI MCQs:", genratedmcq);
+  };
+
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">
-          {editMode ? "Edit Test" : "All Tests"}
-        </h1>
-        <div className="flex gap-2">
-          {!showForm && !editMode && (
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="bg-gray-600 text-white px-4 py-2 rounded-md shadow hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-              {refreshing ? "Refreshing..." : "Refresh"}
-            </button>
-          )}
-          <button
-            onClick={() => {
-              if (showForm || editMode) {
-                handleCancel();
-              } else {
-                setShowForm(true);
-                setRecentlyCreatedLink(null);
-              }
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md shadow hover:bg-blue-700"
-          >
-            {showForm || editMode ? "Cancel" : "Add Test"}
-          </button>
-        </div>
-      </div>
+    <div>
+      <div className="flex justify-between items-center"></div>
 
       {/* Show recently created link only when in Add Test mode */}
       {showForm && recentlyCreatedLink && (
         <div className="mt-4 p-4 border rounded-md bg-green-50 border-green-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-700 font-semibold">Test Created Successfully!</p>
-              <p className="text-sm text-green-600 break-all">{recentlyCreatedLink}</p>
+              <p className="text-green-700 font-semibold">
+                Test Created Successfully!
+              </p>
+              <p className="text-sm text-green-600 break-all">
+                {recentlyCreatedLink}
+              </p>
             </div>
             <button
               onClick={handleCopyRecentLink}
@@ -386,7 +426,45 @@ const CreateMcqTestPage = () => {
 
       {!showForm && !editMode && (
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Available Tests</h2>
+          <div className="flex gap-2 justify-end">
+            {!showForm && !editMode && (
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md shadow hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2 relative group"
+              >
+                <RefreshCw
+                  size={16}
+                  className={refreshing ? "animate-spin" : ""}
+                />
+
+                {/* Tooltip */}
+                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Refresh
+                </span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (showForm || editMode) {
+                  handleCancel();
+                } else {
+                  setShowForm(true);
+                  setRecentlyCreatedLink(null);
+                }
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md shadow hover:bg-blue-700 flex items-center relative group"
+            >
+              {showForm || editMode ? "Cancel" : <Plus />}
+
+              {/* Tooltip */}
+              {!showForm && !editMode && (
+                <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Add test
+                </span>
+              )}
+            </button>
+          </div>
           {loadingTests ? (
             <p className="text-gray-500">Loading tests...</p>
           ) : tests.length === 0 ? (
@@ -400,7 +478,9 @@ const CreateMcqTestPage = () => {
                 >
                   <div className="absolute top-2 right-2 flex gap-2">
                     <a
-                      href={`/dashboard/customquiz/${test.subject}/${test.testId || ""}`}
+                      href={`/dashboard/customquiz/${test.subject}/${
+                        test.testId || ""
+                      }`}
                       className="p-2 border rounded-full flex items-center justify-center hover:bg-purple-100 transition"
                     >
                       <Eye size={16} className="text-purple-600" />
@@ -445,47 +525,86 @@ const CreateMcqTestPage = () => {
       )}
 
       {(showForm || editMode) && (
-        <div className="grid grid-cols-1 gap-4">
-          <input
-            type="text"
-            placeholder="Enter Test Name"
-            value={testName}
-            onChange={(e) => setTestName(e.target.value)}
-            className="p-2 border rounded-md"
-          />
-          <input
-            type="text"
-            placeholder="Enter Subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="p-2 border rounded-md"
-            disabled={editMode} // Disable subject editing in edit mode
-          />
-          <textarea
-            rows="12"
-            placeholder={
-              editMode
-                ? "Edit MCQ data (shown as readable text, will be stored as hex)"
-                : "Enter full JSON array here"
-            }
-            value={jsonInput}
-            onChange={(e) => setJsonInput(e.target.value)}
-            className="p-2 border rounded-md font-mono"
-          ></textarea>
-          <button
-            onClick={editMode ? handleSaveUpdate : handleCreateTest}
-            disabled={loading || loadingEdit}
-            className="bg-green-600 text-white px-4 py-2 rounded-md shadow hover:bg-green-700 disabled:opacity-50"
-          >
-            {loading || loadingEdit
-              ? editMode
-                ? "Saving..."
-                : "Creating..."
-              : editMode
-              ? "Save Changes"
-              : "Create Test"}
-          </button>
-        </div>
+    <div className="grid grid-cols-1 gap-4 p-4">
+  <input
+    type="text"
+    placeholder="Enter Test Name"
+    value={testName}
+    onChange={(e) => setTestName(e.target.value)}
+    className="p-2 border rounded-md"
+  />
+  <input
+    type="text"
+    placeholder="Enter Subject"
+    value={subject}
+    onChange={(e) => setSubject(e.target.value)}
+    className="p-2 border rounded-md"
+    disabled={editMode}
+  />
+
+  {/* Optional AI MCQ generator */}
+  <div className="flex gap-2 items-center">
+    <input
+      type="text"
+      placeholder="Optional: enter what MCQs to generate (AI)"
+      value={aimcq}
+      onChange={(e) => setAimcq(e.target.value)}
+      className="p-2 border rounded-md flex-1"
+    />
+    <button
+      onClick={handleGenerateMCQs}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow flex items-center gap-2 transition"
+    >
+      <Plus size={16} />
+      Generate MCQs
+    </button>
+  </div>
+
+  {/* Textarea for MCQs (AI generated or manual) */}
+  <textarea
+    rows="12"
+    placeholder={
+      editMode
+        ? "Edit MCQ data (shown as readable text, will be stored as hex)"
+        : `Optional: enter your MCQs manually in this JSON format:
+[
+  {
+    "id": "q1",
+    "subtopic": "loops",
+    "question": "What is a loop in Java?",
+    "options": ["Condition", "Function", "Loop", "Array"],
+    "answer": "Loop"
+  },
+  {
+    "id": "q2",
+    "subtopic": "datatypes",
+    "question": "Which is not a Java primitive type?",
+    "options": ["int", "float", "boolean", "string"],
+    "answer": "string"
+  }
+]`
+    }
+    value={JSON.stringify(genratedmcq, null, 2)} // Show generated MCQs here
+    readOnly
+    className="p-2 border rounded-md font-mono"
+  ></textarea>
+
+  {/* Create / Save button */}
+  <button
+    onClick={editMode ? handleSaveUpdate : handleCreateTest}
+    disabled={loading || loadingEdit}
+    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow disabled:opacity-50 transition"
+  >
+    {loading || loadingEdit
+      ? editMode
+        ? "Saving..."
+        : "Creating..."
+      : editMode
+      ? "Save Changes"
+      : "Create Test"}
+  </button>
+</div>
+
       )}
 
       {loadingEdit && (

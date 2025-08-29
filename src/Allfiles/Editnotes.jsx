@@ -30,90 +30,78 @@ export default function Editnotes() {
   const [showCodePanel, setShowCodePanel] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeDocId, setActiveDocId] = useState(null); // instead of activeUnit
 
   useEffect(() => {
     fetchSubjects();
   }, [fetchSubjects]);
 
   useEffect(() => {
-    if (units.length > 0 && !activeUnit) {
+    if (units.length > 0 && !activeDocId) {
       const sorted = [...units].sort(
         (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
       );
       const first = sorted[0];
-      if (first?.unit) {
-        setActiveUnit(first.unit);
-        fetchNote(first.unit);
-      
+      if (first?.docId) {
+        setActiveDocId(first.docId);
+        fetchNote(first);   // pass full unit object
       }
     }
-  }, [units, fetchNote]);
+  }, [units, activeDocId, fetchNote]);
 
- useEffect(() => {
-  console.log("Syncing note:", note);
-  if (note) {
-    setEditedHtml(note.content || "");
-    setEditedCode(note.code || "");
-    setEditedUnit(note.unit || "");
-    setEditedHeading(note.heading || "");
-    setActiveUnit(note.docId || ""); 
-  }
-}, [note]);
+  useEffect(() => {
+    if (note) {
+      setEditedHtml(note.content || "");
+      setEditedCode(note.code || "");
+      setEditedUnit(note.unit || "");
+      setEditedHeading(note.heading || "");
+      setActiveDocId(note.docId || ""); 
+    }
+  }, [note]);
 
-
-  const handleUnitClick = (unitId) => {
-    setActiveUnit(unitId);
-    fetchNote(unitId);
+  const handleUnitClick = (unitObj) => {
+    setActiveDocId(unitObj.docId);
+    fetchNote(unitObj);   // pass full object
     setSaveStatus(null);
   };
 
-const saveChanges = async () => {
-  if (!subject || !activeUnit) {
-    console.warn("No subject or unit selected");
-    setSaveStatus("error");
-    setTimeout(() => setSaveStatus(null), 5000);
-    return;
-  }
-
-  const updatedFields = {};
-  if (editedHtml != null) updatedFields.content = editedHtml;
-  if (editedCode != null) updatedFields.code = editedCode;
-  if (editedHeading != null) updatedFields.heading = editedHeading;
-  if (editedUnit != null && Number(editedUnit) !== Number(activeUnit)) {
-    updatedFields.unit = Number(editedUnit);
-  }
-
-  if (Object.keys(updatedFields).length === 0) {
-    console.warn("🟡 Nothing to update.");
-    setSaveStatus("warning");
-    setTimeout(() => setSaveStatus(null), 3000);
-    return;
-  }
-
-  console.log("Saving note:", { subject, docId: activeUnit, updatedFields });
-
-  setIsSaving(true);
-  setSaveStatus(null);
-
-  try {
-    const response = await updateNote({ docId: activeUnit, unit: activeUnit }, updatedFields, subject);
-   console.log("hello my id is",activeUnit);
-    if (response.success) {
-      await fetchNote(activeUnit); // Refresh note
-      setSaveStatus("success");
-      console.log(`✅ Note saved successfully! docId: ${activeUnit}`);
-    } else {
-      throw new Error(response.error || "Unknown error");
+  const saveChanges = async () => {
+    console.log("saved changes");
+    if (!subject || !activeDocId) {
+      console.warn("No subject or docId selected");
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 5000);
+      return;
     }
-  } catch (err) {
-    setSaveStatus("error");
-    console.error(`❌ Error saving note for docId: ${activeUnit}`, err.message);
-  } finally {
-    setIsSaving(false);
-    setTimeout(() => setSaveStatus(null), 4000);
-  }
-};
 
+    const updatedFields = {};
+    if (editedHtml != null) updatedFields.content = editedHtml;
+    if (editedCode != null) updatedFields.code = editedCode;
+    if (editedHeading != null) updatedFields.heading = editedHeading;
+    if (editedUnit != null) updatedFields.unit = Number(editedUnit);
+
+    if (Object.keys(updatedFields).length === 0) {
+      setSaveStatus("warning");
+      setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
+
+    try {
+      const response = await updateNote({ docId: activeDocId }, updatedFields, subject);
+      if (response.success) {
+        await fetchNote({ docId: activeDocId }); // refresh
+        setSaveStatus("success");
+      } else {
+        throw new Error(response.error || "Unknown error");
+      }
+    } catch (err) {
+      setSaveStatus("error");
+      console.error(`❌ Error saving note for docId: ${activeDocId}`, err.message);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
+  };
 
   const sortedUnits = [...units].sort(
     (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
@@ -122,13 +110,20 @@ const saveChanges = async () => {
   const getHeadingDisplay = (unitObj) => {
     const unitNum = unitObj.unit || "???";
     let headingText = unitObj.heading || "Untitled";
+    
+    // Remove unitNum from the start of headingText if it exists
     if (headingText.startsWith(unitNum)) {
       headingText = headingText
         .replace(unitNum, "")
         .replace(/^[:.\s-]+/, "")
         .trim();
     }
-    return `Unit ${unitNum}: ${headingText}`;
+    
+    // Remove all remaining numbers and periods from headingText, keeping only characters
+    headingText = headingText.replace(/[0-9.]/g, '').trim();
+    
+    // Return formatted string with unit number and cleaned heading
+    return `Unit ${unitNum}: ${headingText || "Unit"}`;
   };
 
   const getSanitizedHtml = () => {
@@ -188,40 +183,37 @@ const saveChanges = async () => {
             }`}
           >
             <option value="">-- Select Subject --</option>
-           {subjects.map((subj) => (
-  <option key={subj} value={subj} className="text-base text-black dark:text-white">
-    {subjectNameMap[subj] || subj}
-  </option>
-))}
-
+            {subjects.map((subj) => (
+              <option key={subj} value={subj} className="text-base text-black dark:text-white">
+                {subjectNameMap[subj] || subj}
+              </option>
+            ))}
           </select>
 
           <div className="flex-1 overflow-y-auto my-scrollable-div">
             <ul className="list-none p-0 m-0 text-left">
-{sortedUnits.map((unit, idx) => {
-  // Combine unit.unit + index + heading to guarantee unique key
-  const unitId = unit.unit != null ? `${unit.unit}-${idx}` : `unit-${idx}-${unit.heading || ""}`;
-  const isActive = activeUnit === unit.unit; // activeUnit can still be the plain unit value
+              {sortedUnits.map((unit, idx) => {
+                const unitId = unit.docId || `unit-${idx}`;
+                const isActive = activeDocId === unit.docId;
 
-  return (
-    <li
-      key={unitId}
-      onClick={() => handleUnitClick(unit.unit)}
-      className={`cursor-pointer mb-2 p-3 rounded-md border text-sm transition-all duration-200 hover:shadow-sm ${
-        isActive
-          ? theme === "light"
-            ? "bg-blue-100 border-blue-300 text-blue-900"
-            : "bg-blue-900 border-blue-600 text-blue-100"
-          : theme === "light"
-            ? "bg-gray-50 border-gray-300 hover:bg-gray-100"
-            : "bg-gray-800 border-gray-700 hover:bg-gray-700"
-      }`}
-    >
-      {getHeadingDisplay(unit)}
-    </li>
-  );
-})}
-
+                return (
+                  <li
+                    key={unitId}
+                    onClick={() => handleUnitClick(unit)}   // ✅ pass full unit object
+                    className={`cursor-pointer mb-2 p-3 rounded-md border text-sm transition-all duration-200 hover:shadow-sm ${
+                      isActive
+                        ? theme === "light"
+                          ? "bg-blue-100 border-blue-300 text-blue-900"
+                          : "bg-blue-900 border-blue-600 text-blue-100"
+                        : theme === "light"
+                          ? "bg-gray-50 border-gray-300 hover:bg-gray-100"
+                          : "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                    }`}
+                  >
+                    {getHeadingDisplay(unit)}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
@@ -294,7 +286,7 @@ const saveChanges = async () => {
             )}
             <button
               onClick={saveChanges}
-              disabled={isSaving || !subject || !activeUnit}
+              
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 isSaving
                   ? "bg-gray-400 text-white cursor-not-allowed"
@@ -396,19 +388,19 @@ const saveChanges = async () => {
         )}
 
         {/* Editor or Viewer */}
-        <div className="h-full w-full overflow-hidden text-left pt-16">
-          {isLoadingNote ? (
-            <div className="p-4 text-gray-400 italic">Loading note...</div>
-          ) : mode === "view" ? (
+        <div className="h-full w-full overflow-hidden text-left pt-16 bg-white">
+          {mode === "view" ? (
             <div
               className={`h-full w-full overflow-auto my-scrollable-div ${
-                theme === "light" ? "bg-whiste" : "bg-[#1e1e1e]"
+                theme === "light" ? "bg-white" : "bg-[#1e1e1e]"
               }`}
             >
               {editedHtml || editedCode ? (
                 <HtmlViewer htmlContent={getSanitizedHtml()} codeContent={editedCode} />
               ) : (
-                <div className="p-4 text-gray-400 italic">Select a unit to view the notes...</div>
+                <div className="p-4 text-grey-400 italic">
+                  {isLoadingNote ? "Loading note..." : "Select a unit to view the notes..."}
+                </div>
               )}
             </div>
           ) : (

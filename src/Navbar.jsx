@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from 'react-router-dom';
+import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "./context/UserProvider"; // make sure this exists
 export default function Navbar() {
@@ -22,8 +22,7 @@ export default function Navbar() {
     navigate("/login"); // redirect to login
   };
 
-
-const {subject,docId}=useParams();
+  const { subject, docId } = useParams();
   const navbarBg =
     theme === "dark"
       ? "bg-black/10 border-gray-800" // Lighter black with 80% opacity, paired with a dark border
@@ -38,10 +37,11 @@ const {subject,docId}=useParams();
               <span className="text-white font-bold text-lg">D</span>
             </div>
             <h1
-              className={`text-2xl font-bold bg-gradient-to-r ${theme === "dark"
+              className={`text-2xl font-bold bg-gradient-to-r ${
+                theme === "dark"
                   ? "from-gray-100 to-gray-300"
                   : "from-gray-800 to-gray-600"
-                } bg-clip-text text-transparent`}
+              } bg-clip-text text-transparent`}
             >
               Dashboard
             </h1>
@@ -50,80 +50,104 @@ const {subject,docId}=useParams();
           {/* Center: Conditionally show heading for /dashboard/interview */}
           {location.pathname === "/dashboard/interview" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-             <h1
-                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
-                  }`}
+              <h1
+                className={`text-2xl font-bold ${
+                  theme === "light"
+                    ? "bg-white text-black"
+                    : "bg-[#1e1e1e] text-white"
+                }`}
               >
-               DSA (Chedo Sheets)
+                DSA (Chedo Sheets)
               </h1>
-              
             </div>
           )}
           {location.pathname === "/dashboard/mcq" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-             <h1
-                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
-                  }`}
+              <h1
+                className={`text-2xl font-bold ${
+                  theme === "light"
+                    ? "bg-white text-black"
+                    : "bg-[#1e1e1e] text-white"
+                }`}
               >
-             MCQ Practice
+                MCQ Practice
               </h1>
-               
             </div>
           )}
-      
+
           {location.pathname === "/dashboard/notes" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <h1
-                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
-                  }`}
+                className={`text-2xl font-bold ${
+                  theme === "light"
+                    ? "bg-white text-black"
+                    : "bg-[#1e1e1e] text-white"
+                }`}
               >
                 Notes
               </h1>
-
             </div>
           )}
-              {location.pathname === "/dashboard/updatedetails" && (
+          {location.pathname === "/dashboard/updatedetails" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <h1
-                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
-                  }`}
+                className={`text-2xl font-bold ${
+                  theme === "light"
+                    ? "bg-white text-black"
+                    : "bg-[#1e1e1e] text-white"
+                }`}
               >
-               Student Profile
+                Student Profile
               </h1>
-
             </div>
           )}
-           {location.pathname === "/dashboard/roles" && (
+          {location.pathname === "/dashboard/roles" && (
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <h1
-                className={`text-2xl font-bold ${theme === "light" ? "bg-white text-black" : "bg-[#1e1e1e] text-white"
-                  }`}
+                className={`text-2xl font-bold ${
+                  theme === "light"
+                    ? "bg-white text-black"
+                    : "bg-[#1e1e1e] text-white"
+                }`}
               >
-               Manage Role
+                Manage Role
               </h1>
-
             </div>
           )}
-        {subject && docId && (
-  <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-    <h1
-      className={`text-2xl font-bold px-4 py-2 rounded ${
-        theme === "light"
-          ? "bg-white text-black  "
-          : "bg-[#1e1e1e] text-white "
-      }`}
-    >
-      {subject.charAt(0).toUpperCase() + subject.slice(1)} Test
-    </h1>
-  </div>
-)}
+           {location.pathname === "/dashboard/customquiz" && (
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <h1
+                className={`text-2xl font-bold ${
+                  theme === "light"
+                    ? "bg-white text-black"
+                    : "bg-[#1e1e1e] text-white"
+                }`}
+              >
+                All Test
+              </h1>
+            </div>
+          )}
+          {subject && docId && (
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <h1
+                className={`text-2xl font-bold px-4 py-2 rounded ${
+                  theme === "light"
+                    ? "bg-white text-black  "
+                    : "bg-[#1e1e1e] text-white "
+                }`}
+              >
+                {subject.charAt(0).toUpperCase() + subject.slice(1)} Test
+              </h1>
+            </div>
+          )}
 
           {/* Right Side - Dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowDropdown((prev) => !prev)}
-              className={`flex items-center space-x-2 px-4 py-2 ${theme === "dark" ? "bg-gray-700/50" : "bg-white/50"
-                } rounded-full shadow-sm transition`}
+              className={`flex items-center space-x-2 px-4 py-2 ${
+                theme === "dark" ? "bg-gray-700/50" : "bg-white/50"
+              } rounded-full shadow-sm transition`}
             >
               <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-medium">
@@ -131,8 +155,9 @@ const {subject,docId}=useParams();
                 </span>
               </div>
               <span
-                className={`${theme === "dark" ? "text-gray-200" : "text-gray-700"
-                  } font-medium`}
+                className={`${
+                  theme === "dark" ? "text-gray-200" : "text-gray-700"
+                } font-medium`}
               >
                 {userEmail}
               </span>
@@ -155,14 +180,16 @@ const {subject,docId}=useParams();
             <div className="absolute right-0 mt-2 w-48 bg-gray-800 text-white rounded-lg shadow-lg z-50">
               {showDropdown && (
                 <div
-                  className={`absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-50 ${theme === "dark" ? "bg-gray-800" : "bg-white"
-                    }`}
+                  className={`absolute right-0 mt-2 w-48 rounded-xl shadow-xl z-50 ${
+                    theme === "dark" ? "bg-gray-800" : "bg-white"
+                  }`}
                 >
                   {/* Theme toggle */}
                   <button
                     onClick={toggleTheme}
-                    className={`w-full text-left px-4 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-800"
-                      }`}
+                    className={`w-full text-left px-4 py-2 ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-800"
+                    }`}
                   >
                     {theme === "dark" ? "Light Mode" : " Dark Mode"}
                   </button>
@@ -170,8 +197,9 @@ const {subject,docId}=useParams();
                   {/* Change Password */}
                   <button
                     onClick={() => navigate("/dashboard/changepassword")}
-                    className={`w-full text-left px-4 py-2 ${theme === "dark" ? "text-gray-200" : "text-gray-800"
-                      }`}
+                    className={`w-full text-left px-4 py-2 ${
+                      theme === "dark" ? "text-gray-200" : "text-gray-800"
+                    }`}
                   >
                     Change Password
                   </button>
@@ -179,17 +207,19 @@ const {subject,docId}=useParams();
                   {role === "superadmin" && (
                     <button
                       onClick={() => navigate("/dashboard/editnotes")}
-                      className={`w-full text-left px-4 py-2 ${theme === "dark" ? "text-green-300" : "text-green-700"
-                        }`}
+                      className={`w-full text-left px-4 py-2 ${
+                        theme === "dark" ? "text-green-300" : "text-green-700"
+                      }`}
                     >
                       Edit Notes
                     </button>
                   )}
-                    {role === "superadmin" && (
+                  {role === "superadmin" && (
                     <button
                       onClick={() => navigate("/dashboard/customquiz")}
-                      className={`w-full text-left px-4 py-2 ${theme === "dark" ? "text-green-300" : "text-green-700"
-                        }`}
+                      className={`w-full text-left px-4 py-2 ${
+                        theme === "dark" ? "text-green-300" : "text-green-700"
+                      }`}
                     >
                       Create test
                     </button>
@@ -198,8 +228,9 @@ const {subject,docId}=useParams();
                   {/* Logout */}
                   <button
                     onClick={handleLogout}
-                    className={`w-full text-left px-4 py-2 rounded-b-xl font-medium ${theme === "dark" ? "text-red-400" : "text-red-600"
-                      }`}
+                    className={`w-full text-left px-4 py-2 rounded-b-xl font-medium ${
+                      theme === "dark" ? "text-red-400" : "text-red-600"
+                    }`}
                   >
                     Logout
                   </button>

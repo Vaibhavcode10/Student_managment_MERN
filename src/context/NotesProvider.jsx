@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 
 const NotesContext = createContext();
 
@@ -20,7 +26,7 @@ export const NotesProvider = ({ children }) => {
   const cache = useRef({
     subjects: null,
     units: new Map(), // subject -> units
-    notes: new Map()  // subject+unit -> note
+    notes: new Map(), // subject+unit -> note
   });
 
   const BASE_URL = "https://api-e5q6islzdq-uc.a.run.app/api";
@@ -46,18 +52,19 @@ export const NotesProvider = ({ children }) => {
     const headingLower = heading.toLowerCase();
     const unitLower = unitStr.toLowerCase();
 
-    const startsWithUnit = headingLower.startsWith(unitLower) ||
-      headingLower.startsWith('0' + unitLower);
+    const startsWithUnit =
+      headingLower.startsWith(unitLower) ||
+      headingLower.startsWith("0" + unitLower);
 
     if (startsWithUnit) {
       let cleanHeading = heading;
       if (headingLower.startsWith(unitLower)) {
         cleanHeading = heading.substring(unitStr.length);
-      } else if (headingLower.startsWith('0' + unitLower)) {
+      } else if (headingLower.startsWith("0" + unitLower)) {
         cleanHeading = heading.substring(unitStr.length + 1);
       }
 
-      return cleanHeading.replace(/^[\s:.\-]+/, '').trim();
+      return cleanHeading.replace(/^[\s:.\-]+/, "").trim();
     }
 
     return heading;
@@ -98,138 +105,158 @@ export const NotesProvider = ({ children }) => {
   }, [isLoadingSubjects, subjects.length]);
 
   // 🧩 Fetch units for a subject with caching
-  const fetchUnits = useCallback(async (selectedSubject) => {
-    if (!selectedSubject) return;
+  const fetchUnits = useCallback(
+    async (selectedSubject) => {
+      if (!selectedSubject) return;
 
-    // 🔧 Prevent duplicate calls
-    if (isLoadingUnits) {
-      console.log("🧩 fetchUnits already in progress, skipping...");
-      return;
-    }
+      // 🔧 Prevent duplicate calls
+      if (isLoadingUnits) {
+        console.log("🧩 fetchUnits already in progress, skipping...");
+        return;
+      }
 
-    // 🔧 Return cached data if available
-    const cachedUnits = cache.current.units.get(selectedSubject);
-    if (cachedUnits && subject === selectedSubject) {
-      console.log("🧩 Using cached units for", selectedSubject);
-      return;
-    }
+      // 🔧 Return cached data if available
+      const cachedUnits = cache.current.units.get(selectedSubject);
+      if (cachedUnits && subject === selectedSubject) {
+        console.log("🧩 Using cached units for", selectedSubject);
+        return;
+      }
 
-    setIsLoadingUnits(true);
+      setIsLoadingUnits(true);
 
-    try {
-      setSubject(selectedSubject);
-      setNote(null);
-      setUnits([]); // Clear previous units instantly
+      try {
+        setSubject(selectedSubject);
+        setNote(null);
+        setUnits([]); // Clear previous units instantly
 
-      console.log("🧩 Fetching units for:", selectedSubject);
-      const res = await fetch(`${BASE_URL}/units?subject=${selectedSubject}`);
-      const data = await res.json();
+        console.log("🧩 Fetching units for:", selectedSubject);
+        const res = await fetch(`${BASE_URL}/units?subject=${selectedSubject}`);
+        const data = await res.json();
 
-      const sorted = (data.units || []).sort((a, b) => {
-        const aUnit = parseFloat(a.unit);
-        const bUnit = parseFloat(b.unit);
-        return aUnit - bUnit;
-      });
+        const sorted = (data.units || []).sort((a, b) => {
+          const aUnit = parseFloat(a.unit);
+          const bUnit = parseFloat(b.unit);
+          return aUnit - bUnit;
+        });
 
-      // Clean up headings for all units
-      const cleanedUnits = sorted.map(unit => ({
-        ...unit,
-        displayHeading: cleanHeading(unit.unit, unit.heading)
-      }));
+        // Clean up headings for all units
+        const cleanedUnits = sorted.map((unit) => ({
+          ...unit,
+          displayHeading: cleanHeading(unit.unit, unit.heading),
+          docId: unit.docId || unit.id || "", // carry docId forward
+        }));
 
-      // Cache the result
-      cache.current.units.set(selectedSubject, cleanedUnits);
-      setUnits(cleanedUnits);
-      console.log(`✅ Units for "${selectedSubject}":`, cleanedUnits.length);
-    } catch (err) {
-      console.error("❌ Error fetching units:", err);
-      setUnits([]);
-    } finally {
-      setIsLoadingUnits(false);
-    }
-  }, [isLoadingUnits, subject]);
+        // Cache the result
+        cache.current.units.set(selectedSubject, cleanedUnits);
+        setUnits(cleanedUnits);
+        console.log(`✅ Units for "${selectedSubject}":`, cleanedUnits.length);
+      } catch (err) {
+        console.error("❌ Error fetching units:", err);
+        setUnits([]);
+      } finally {
+        setIsLoadingUnits(false);
+      }
+    },
+    [isLoadingUnits, subject]
+  );
 
   // 📄 Fetch note data with caching
- 
-const fetchNote = useCallback(async (unitHeading) => {
-  if (!subject || !unitHeading) return;
 
-  const cacheKey = `${subject}-${unitHeading}`;
+  const fetchNote = useCallback(
+    async (unitObj) => {
+      if (!subject || !unitObj?.docId) return;
 
-  if (isLoadingNote) return;
+      const cacheKey = `${subject}-${unitObj.docId}`;
 
-  const cachedNote = cache.current.notes.get(cacheKey);
-  if (cachedNote) {
-    setNote(cachedNote);
-    return;
-  }
+      if (isLoadingNote) return;
 
-  setIsLoadingNote(true);
-  try {
-    const res = await fetch(
-      `${BASE_URL}/notes?subject=${subject}&unit=${encodeURIComponent(unitHeading)}`
-    );
-    const data = await res.json();
+      const cachedNote = cache.current.notes.get(cacheKey);
+      if (cachedNote) {
+        setNote(cachedNote);
+        return;
+      }
 
-    if (!data?.data) {
-      setNote(null);
-      return;
+      setIsLoadingNote(true);
+      try {
+        const res = await fetch(
+          `${BASE_URL}/notes?subject=${subject}&docId=${encodeURIComponent(
+            unitObj.docId
+          )}`
+        );
+        const data = await res.json();
+
+        if (!data) {
+          setNote(null);
+          return;
+        }
+
+        if (data.code) data.code = hexToString(data.code);
+
+        cache.current.notes.set(cacheKey, data);
+        setNote(data);
+      } catch (err) {
+        console.error("❌ Error fetching note:", err);
+        setNote(null);
+      } finally {
+        setIsLoadingNote(false);
+      }
+    },
+    [subject, isLoadingNote]
+  );
+
+  const updateNote = async (noteData, updatedFields, subject) => {
+    console.log("Saving note with docId:", noteData.docId);
+
+    try {
+      // Basic validation
+      if (!noteData?.docId) {
+        throw new Error("No docId found for this note!");
+      }
+      if (!subject) {
+        throw new Error("No subject provided!");
+      }
+      if (!updatedFields || Object.keys(updatedFields).length === 0) {
+        throw new Error("No fields to update!");
+      }
+
+      // Construct URL using path parameters
+      const url = `${BASE_URL}/notes/${encodeURIComponent(
+        subject
+      )}/${encodeURIComponent(noteData.docId)}`;
+
+      // Send PATCH request
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedFields),
+      });
+
+      // Safely parse JSON response
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`HTTP ${res.status}: Failed to parse JSON`);
+      }
+
+      // Handle unsuccessful response
+      if (!res.ok) {
+        throw new Error(
+          data.error || `HTTP ${res.status}: Failed to update note`
+        );
+      }
+
+      // Optionally invalidate local cache
+      const cacheKey = `${subject}-${noteData.unit || noteData.docId}`;
+      cache?.current?.notes?.delete(cacheKey);
+
+      console.log("✅ Note updated successfully:", data);
+      return { success: true, message: data.message || "Note updated" };
+    } catch (err) {
+      console.error("❌ Error updating note:", err.message);
+      return { success: false, error: err.message };
     }
-
-    const rawNote = data.data;
-
-    if (rawNote?.code) rawNote.code = hexToString(rawNote.code);
-
-    // ✅ Store docId from API
-    rawNote.docId = data.unit || rawNote.docId || unitHeading;
-
-    cache.current.notes.set(cacheKey, rawNote);
-    setNote(rawNote);
-
-  } catch (err) {
-    console.error("❌ Error fetching note:", err);
-    setNote(null);
-  } finally {
-    setIsLoadingNote(false);
-  }
-}, [subject, isLoadingNote]);
-
-// Updated updateNote function
-const updateNote = async (noteData, updatedFields) => {
-  console.log("hey id is ",noteData.docId);
-  try {
-    if (!noteData?.docId) {
-      throw new Error("No docId found for this note!");
-    }
-
-    const url = `${BASE_URL}/notes/${subject}/${encodeURIComponent(noteData.docId)}`;
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedFields),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || `HTTP ${res.status}: Failed to update note`);
-    }
-
-    // Invalidate cache
-    const cacheKey = `${subject}-${noteData.unit || noteData.docId}`;
-    cache?.current?.notes?.delete(cacheKey);
-
-    console.log("✅ Note updated successfully:", data);
-    return { success: true, message: data.message || "Note updated" };
-  } catch (err) {
-    console.error("❌ Error updating note:", err.message);
-    return { success: false, error: err.message };
-  }
-};
-
-
-
- 
+  };
 
   return (
     <NotesContext.Provider
@@ -244,11 +271,11 @@ const updateNote = async (noteData, updatedFields) => {
         isLoadingUnits,
         isLoadingNote,
         // Functions
-         
+
         fetchSubjects,
         fetchUnits,
         fetchNote,
-        updateNote
+        updateNote,
       }}
     >
       {children}

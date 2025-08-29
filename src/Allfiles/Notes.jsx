@@ -45,28 +45,28 @@ export default function Notes() {
   }, []); // Empty dependency array is fine here since we have the guard
 
   // 🔧 FIX 2: Fix the missing dependencies and add proper guards
-  useEffect(() => {
-    // Guard: Only run if we have units and no active unit is set
-    if (units.length > 0 && !activeUnit) {
-      const sorted = [...units].sort(
-        (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
-      );
-      const first = sorted[0];
-      if (first?.unit) {
-        setActiveUnit(first.unit);
-        fetchNote(first.unit);
-      }
+// Select first unit automatically
+useEffect(() => {
+  if (units.length > 0 && !activeUnit) {
+    const sorted = [...units].sort(
+      (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
+    );
+    const first = sorted[0];
+    if (first?.docId) {
+      setActiveUnit(first.docId);   // use docId as state
+      fetchNote(first);             // pass full unit object
     }
-  }, [units, activeUnit, fetchNote]); // 🔧 Added missing dependencies
+  }
+}, [units, activeUnit, fetchNote]);
 
-  // 🔧 FIX 3: Memoize the unit click handler to prevent unnecessary re-renders
-  const handleUnitClick = useCallback((unitId) => {
-    setActiveUnit(unitId);
-    fetchNote(unitId);
-    if (isMobile) {
-      setShowSidebar(false);
-    }
-  }, [fetchNote, isMobile]);
+// On click
+const handleUnitClick = useCallback((unitObj) => {
+  setActiveUnit(unitObj.docId);
+  fetchNote(unitObj);               // pass full unit object
+  if (isMobile) {
+    setShowSidebar(false);
+  }
+}, [fetchNote, isMobile]);
 
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar);
@@ -199,29 +199,21 @@ export default function Notes() {
           {/* Units List */}
           <div className="flex-1 overflow-y-auto max-h-[80vh] my-scrollable-div">
             <ul className="space-y-2 p-2 text-left">
-              {sortedUnits.map((unit, idx) => {
-                const unitId = unit.unit || `unit-${idx}`;
-                const isActive = activeUnit === unitId;
+             {sortedUnits.map((unit, idx) => {
+  const unitId = unit.docId || `unit-${idx}`;
+  const isActive = activeUnit === unitId;
 
-                return (
-                  <li
-                    key={unitId}
-                    onClick={() => handleUnitClick(unitId)}
-                    className={`cursor-pointer px-2 py-3 rounded-xl border text-sm font-medium transition-all duration-200 shadow-sm 
-                      ${
-                        isActive
-                          ? theme === "light"
-                            ? "bg-blue-100 border-blue-300 text-blue-900"
-                            : "bg-blue-900 border-blue-600 text-blue-100"
-                          : theme === "light"
-                            ? "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-                            : "bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-200"
-                      }`}
-                  >
-                    {getHeadingDisplay(unit)}
-                  </li>
-                );
-              })}
+  return (
+    <li
+      key={unitId}
+      onClick={() => handleUnitClick(unit)}   // ✅ pass unit object
+      className={`cursor-pointer px-2 py-3 ...`}
+    >
+      {getHeadingDisplay(unit)}
+    </li>
+  );
+})}
+
             </ul>
           </div>
         </div>

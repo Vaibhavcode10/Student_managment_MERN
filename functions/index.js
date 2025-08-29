@@ -27,18 +27,22 @@ function getCache(key) {
   return item.value;
 }
 
-
-vaibhav.use(cors({
-  origin: "*", // allow any origin
-  methods: "*", // allow all HTTP methods: GET, POST, DELETE, PATCH, PUT, OPTIONS, etc.
-  allowedHeaders: "*", // allow all headers
-  credentials: true
-}));
+vaibhav.use(
+  cors({
+    origin: "*", // allow any origin
+    methods: "*", // allow all HTTP methods: GET, POST, DELETE, PATCH, PUT, OPTIONS, etc.
+    allowedHeaders: "*", // allow all headers
+    credentials: true,
+  })
+);
 
 // Optional: handle preflight for all routes
 vaibhav.options("*", (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  );
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.status(204).send("");
 });
@@ -54,8 +58,12 @@ function computeResults(student) {
 
 //random id
 function generateRandomId(length = 12) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(
+    { length },
+    () => chars[Math.floor(Math.random() * chars.length)]
+  ).join("");
 }
 
 // ✅ Add student
@@ -75,8 +83,8 @@ vaibhav.post("/student", async (req, res) => {
 vaibhav.get("/students", async (req, res) => {
   try {
     const { limit = 50, startAfter } = req.query;
-    const cacheKey = `students_${limit}_${startAfter || 'first'}`;
-    
+    const cacheKey = `students_${limit}_${startAfter || "first"}`;
+
     // Check cache first
     const cached = getCache(cacheKey);
     if (cached) {
@@ -84,18 +92,21 @@ vaibhav.get("/students", async (req, res) => {
     }
 
     let query = db.collection("studentsData").limit(parseInt(limit));
-    
+
     if (startAfter) {
-      const startDoc = await db.collection("studentsData").doc(startAfter).get();
+      const startDoc = await db
+        .collection("studentsData")
+        .doc(startAfter)
+        .get();
       query = query.startAfter(startDoc);
     }
-    
+
     const snapshot = await query.get();
     const students = snapshot.docs.map((doc) => doc.data());
-    
+
     // Cache the result
     setCache(cacheKey, students);
-    
+
     res.send(students);
   } catch (err) {
     console.error(err);
@@ -108,7 +119,8 @@ vaibhav.get("/student/:email", async (req, res) => {
   try {
     const email = req.params.email;
     const doc = await db.collection("studentsData").doc(email).get();
-    if (!doc.exists) return res.status(404).send({ error: "Student not found" });
+    if (!doc.exists)
+      return res.status(404).send({ error: "Student not found" });
     res.send(doc.data());
   } catch (err) {
     console.error(err);
@@ -135,7 +147,8 @@ vaibhav.delete("/student/:email", async (req, res) => {
     const email = req.params.email;
     const docRef = db.collection("studentsData").doc(email);
     const doc = await docRef.get();
-    if (!doc.exists) return res.status(404).send({ error: "Student not found" });
+    if (!doc.exists)
+      return res.status(404).send({ error: "Student not found" });
     await docRef.delete();
     res.send({ message: "Student deleted", email });
   } catch (err) {
@@ -150,7 +163,9 @@ vaibhav.post("/register", async (req, res) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).send({ error: "Name, email, and password are required" });
+      return res
+        .status(400)
+        .send({ error: "Name, email, and password are required" });
     }
 
     // Optional: Hash password here before saving to Firestore (for real apps)
@@ -186,7 +201,9 @@ vaibhav.post("/login", async (req, res) => {
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      return res.status(404).send({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .send({ success: false, message: "User not found" });
     }
 
     const userData = doc.data();
@@ -208,14 +225,17 @@ let superAdminCacheTime = 0;
 
 async function verifySuperAdmin(superEmail, superPassword) {
   // Cache superadmin verification for 10 minutes
-  if (superAdminCache && (Date.now() - superAdminCacheTime) < 600000) {
-    if (superAdminCache.email === superEmail && superAdminCache.password === superPassword) {
+  if (superAdminCache && Date.now() - superAdminCacheTime < 600000) {
+    if (
+      superAdminCache.email === superEmail &&
+      superAdminCache.password === superPassword
+    ) {
       return { success: true, data: superAdminCache };
     }
   }
 
   const superDoc = await db.collection("studentsData").doc(superEmail).get();
-  
+
   if (!superDoc.exists) {
     return { success: false, error: "Superadmin not found" };
   }
@@ -227,7 +247,11 @@ async function verifySuperAdmin(superEmail, superPassword) {
   }
 
   // Cache the verification
-  superAdminCache = { email: superEmail, password: superPassword, ...superData };
+  superAdminCache = {
+    email: superEmail,
+    password: superPassword,
+    ...superData,
+  };
   superAdminCacheTime = Date.now();
 
   return { success: true, data: superData };
@@ -327,7 +351,6 @@ vaibhav.put("/make-student", async (req, res) => {
   }
 });
 
-
 // ✅ Get role of the logged-in user by email
 vaibhav.get("/role/:email", async (req, res) => {
   try {
@@ -362,7 +385,9 @@ vaibhav.post("/change-password", async (req, res) => {
     const { email, oldPassword, newPassword } = req.body;
 
     if (!email || !oldPassword || !newPassword) {
-      return res.status(400).json({ error: "Email, old password, and new password are required" });
+      return res
+        .status(400)
+        .json({ error: "Email, old password, and new password are required" });
     }
 
     const userDocRef = db.collection("studentsData").doc(email);
@@ -395,9 +420,9 @@ vaibhav.post("/change-password", async (req, res) => {
 // ✅ OPTIMIZED: Get Admins with caching
 vaibhav.get("/admins", async (req, res) => {
   try {
-    const cacheKey = 'admins_list';
+    const cacheKey = "admins_list";
     let admins = getCache(cacheKey);
-    
+
     if (admins) {
       return res.status(200).json(admins);
     }
@@ -430,7 +455,9 @@ vaibhav.post("/complaints", async (req, res) => {
     const { email, complaint } = req.body;
 
     if (!email || !complaint) {
-      return res.status(400).json({ error: "Email and complaint are required" });
+      return res
+        .status(400)
+        .json({ error: "Email and complaint are required" });
     }
 
     const docRef = await db.collection("complaints").add({
@@ -461,7 +488,7 @@ vaibhav.get("/complaints/:email", async (req, res) => {
       .orderBy("timestamp", "desc")
       .get();
 
-    const complaints = snapshot.docs.map(doc => ({
+    const complaints = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -477,8 +504,8 @@ vaibhav.get("/complaints/:email", async (req, res) => {
 vaibhav.get("/getallproblems", async (req, res) => {
   try {
     const { limit = 50, startAfter } = req.query;
-    const cacheKey = `problems_${limit}_${startAfter || 'first'}`;
-    
+    const cacheKey = `problems_${limit}_${startAfter || "first"}`;
+
     // Check cache first
     const cached = getCache(cacheKey);
     if (cached) {
@@ -486,12 +513,12 @@ vaibhav.get("/getallproblems", async (req, res) => {
         success: true,
         message: "Fetched problems from cachhe   ",
         data: cached.problems,
-        hasMore: cached.hasMore
+        hasMore: cached.hasMore,
       });
     }
 
     let query = db.collection("sheets").limit(parseInt(limit));
-    
+
     if (startAfter) {
       const startDoc = await db.collection("sheets").doc(startAfter).get();
       query = query.startAfter(startDoc);
@@ -500,12 +527,12 @@ vaibhav.get("/getallproblems", async (req, res) => {
     const snapshot = await query.get();
     const problems = [];
 
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc) => {
       problems.push({ id: doc.id, ...doc.data() });
     });
 
     const hasMore = snapshot.size === parseInt(limit);
-    
+
     // Cache the result
     const result = { problems, hasMore };
     setCache(cacheKey, result);
@@ -514,7 +541,7 @@ vaibhav.get("/getallproblems", async (req, res) => {
       success: true,
       message: "Fetched all problems successfully.",
       data: problems,
-      hasMore
+      hasMore,
     });
   } catch (error) {
     console.error("Error fetching problems:", error);
@@ -536,7 +563,7 @@ vaibhav.get("/getmcq", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Both 'subject' and 'id' are required.",
-        example: "/getmcq?subject=java&id=1"
+        example: "/getmcq?subject=java&id=1",
       });
     }
 
@@ -549,25 +576,28 @@ vaibhav.get("/getmcq", async (req, res) => {
     }
 
     const subjectMapping = {
-      'c_programming': { code: 'c', baseId: 10000 },
-      'c++_programming': { code: 'cpp', baseId: 20000 },
-      'java': { code: 'java', baseId: 30000 },
-      'python': { code: 'python', baseId: 400000 },
-      'pseudo_code': { code: 'pseudo_code', baseId: 90000 }
+      c_programming: { code: "c", baseId: 10000 },
+      "c++_programming": { code: "cpp", baseId: 20000 },
+      java: { code: "java", baseId: 30000 },
+      python: { code: "python", baseId: 400000 },
+      pseudo_code: { code: "pseudo_code", baseId: 90000 },
     };
 
     const subjectInfo = subjectMapping[subject.toLowerCase()];
     if (!subjectInfo) {
       return res.status(400).json({
         success: false,
-        message: `Invalid subject. Choose from: ${Object.keys(subjectMapping).join(', ')}`,
+        message: `Invalid subject. Choose from: ${Object.keys(
+          subjectMapping
+        ).join(", ")}`,
       });
     }
 
     const actualFieldId = subjectInfo.baseId + (mcqNumber - 1);
     const docId = `${subject.toLowerCase()}_mcq_${actualFieldId}`;
 
-    const docRef = db.collection("my_mcq_details")
+    const docRef = db
+      .collection("my_mcq_details")
       .doc(subject.toLowerCase())
       .collection("questions")
       .doc(docId);
@@ -577,7 +607,7 @@ vaibhav.get("/getmcq", async (req, res) => {
     if (!doc.exists) {
       return res.status(404).json({
         success: false,
-        message: `MCQ not found: ${docId}`
+        message: `MCQ not found: ${docId}`,
       });
     }
 
@@ -590,12 +620,14 @@ vaibhav.get("/getmcq", async (req, res) => {
         field_id: actualFieldId,
         document_id: docId,
         subject,
-        subject_code: subjectInfo.code
-      }
+        subject_code: subjectInfo.code,
+      },
     });
   } catch (error) {
     console.error("❌ Error in /getmcq:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 });
 
@@ -608,24 +640,27 @@ vaibhav.get("/getrandom", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Subject parameter is required.",
-        example: "/getrandom?subject=java"
+        example: "/getrandom?subject=java",
       });
     }
 
     const subjectMapping = {
-      'c_programming': { baseId: 10000 },
-      'c++_programming': { baseId: 20000 },
-      'java': { baseId: 30000 },
-      'python': { baseId: 400000 },
-      'pseudo_code': { baseId: 90000 }
+      c_programming: { baseId: 10000 },
+      "c++_programming": { baseId: 20000 },
+      java: { baseId: 30000 },
+      python: { baseId: 400000 },
+      pseudo_code: { baseId: 90000 },
     };
 
     const subjectInfo = subjectMapping[subject.toLowerCase()];
     if (!subjectInfo) {
-      return res.status(400).json({ success: false, message: "Invalid subject." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid subject." });
     }
 
-    const questionsRef = db.collection("my_mcq_details")
+    const questionsRef = db
+      .collection("my_mcq_details")
       .doc(subject.toLowerCase())
       .collection("questions");
 
@@ -633,7 +668,9 @@ vaibhav.get("/getrandom", async (req, res) => {
     const docs = snapshot.docs;
 
     if (!docs.length) {
-      return res.status(404).json({ success: false, message: "No MCQs found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "No MCQs found." });
     }
 
     const randomDoc = docs[Math.floor(Math.random() * docs.length)];
@@ -648,13 +685,15 @@ vaibhav.get("/getrandom", async (req, res) => {
         mcq_number: mcqNumber,
         field_id: fieldId,
         document_id: randomDoc.id,
-        subject
+        subject,
       },
-      total_available: docs.length
+      total_available: docs.length,
     });
   } catch (error) {
     console.error("❌ Error in /getrandom:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 });
 
@@ -662,13 +701,16 @@ vaibhav.get("/getrandom", async (req, res) => {
 vaibhav.get("/getmcqcount", async (req, res) => {
   try {
     const { subject } = req.query;
-    
+
     if (subject) {
       const cacheKey = `mcq_count_${subject}`;
       let count = getCache(cacheKey);
-      
+
       if (!count) {
-        const doc = await db.collection("my_mcq_details").doc(subject.toLowerCase()).get();
+        const doc = await db
+          .collection("my_mcq_details")
+          .doc(subject.toLowerCase())
+          .get();
         count = doc.data()?.totalCount || 0;
         setCache(cacheKey, count);
       }
@@ -676,18 +718,24 @@ vaibhav.get("/getmcqcount", async (req, res) => {
       return res.status(200).json({
         success: true,
         subject,
-        count
+        count,
       });
     }
 
-    const cacheKey = 'mcq_counts_all';
+    const cacheKey = "mcq_counts_all";
     let cachedCounts = getCache(cacheKey);
-    
+
     if (cachedCounts) {
       return res.status(200).json(cachedCounts);
     }
 
-    const subjectList = ['c_programming', 'c++_programming', 'java', 'python', 'pseudo_code'];
+    const subjectList = [
+      "c_programming",
+      "c++_programming",
+      "java",
+      "python",
+      "pseudo_code",
+    ];
     const subjectCounts = {};
     let total = 0;
 
@@ -706,28 +754,30 @@ vaibhav.get("/getmcqcount", async (req, res) => {
       success: true,
       message: "MCQ counts by subject",
       data: subjectCounts,
-      total
+      total,
     };
-    
+
     setCache(cacheKey, result);
     res.status(200).json(result);
   } catch (error) {
     console.error("❌ Error in /getmcqcount:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 });
 
- //get subject
- 
+//get subject
+
 // 🔥 GET /api/subjects
-vaibhav.get('/api/subjects', async (req, res) => {
+vaibhav.get("/api/subjects", async (req, res) => {
   try {
-    const cacheKey = 'notes_subjects';
+    const cacheKey = "notes_subjects";
     let subjects = getCache(cacheKey);
 
     if (!subjects) {
-      const snapshot = await db.collection('NotesStudy').listDocuments();
-      subjects = snapshot.map(doc => doc.id);
+      const snapshot = await db.collection("NotesStudy").listDocuments();
+      subjects = snapshot.map((doc) => doc.id);
       setCache(cacheKey, subjects);
     }
 
@@ -739,7 +789,7 @@ vaibhav.get('/api/subjects', async (req, res) => {
 });
 
 // 🔥 GET /api/units?subject=adv-java
-vaibhav.get('/api/units', async (req, res) => {
+vaibhav.get("/api/units", async (req, res) => {
   const { subject } = req.query;
 
   if (!subject) return res.status(400).json({ error: "Subject is required" });
@@ -749,20 +799,25 @@ vaibhav.get('/api/units', async (req, res) => {
     let units = getCache(cacheKey);
 
     if (!units) {
-      const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
+      const unitsRef = db
+        .collection("NotesStudy")
+        .doc(subject)
+        .collection("units");
       const snapshot = await unitsRef.get();
 
-      units = snapshot.docs.map(doc => {
+      units = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           heading: data.heading || `Untitled Unit (${data.unit || doc.id})`,
           unit: data.unit || "",
-          docId: doc.id  // ✅ Include docId for frontend
+          docId: doc.id, // ✅ Include docId for frontend
         };
       });
 
       // Sort units naturally by number
-      units.sort((a, b) => parseFloat(a.unit || 999) - parseFloat(b.unit || 999));
+      units.sort(
+        (a, b) => parseFloat(a.unit || 999) - parseFloat(b.unit || 999)
+      );
 
       setCache(cacheKey, units);
     }
@@ -770,55 +825,65 @@ vaibhav.get('/api/units', async (req, res) => {
     return res.json({ subject, units });
   } catch (err) {
     console.error("🔥 Error fetching units:", err.message);
-    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+    return res
+      .status(500)
+      .json({ error: "Internal Server Error", message: err.message });
   }
 });
 
 // 🔥 GET /api/notes?subject=adv-java&docId=02K8xrPH7GcX3eGvyc7i
 // OR /api/notes?subject=adv-java&unit=heading_text (fallback for old calls)
-vaibhav.get('/api/notes', async (req, res) => {
+vaibhav.get("/api/notes", async (req, res) => {
   const { subject, docId, unit } = req.query;
 
-  if (!subject) return res.status(400).json({ error: 'subject is required' });
-  if (!docId && !unit) return res.status(400).json({ error: 'docId or unit heading is required' });
+  if (!subject) return res.status(400).json({ error: "subject is required" });
+  if (!docId && !unit)
+    return res.status(400).json({ error: "docId or unit heading is required" });
 
   try {
-    const cacheKey = docId ? `notes_${subject}_${docId}` : `notes_${subject}_${unit}`;
+    const cacheKey = docId
+      ? `notes_${subject}_${docId}`
+      : `notes_${subject}_${unit}`;
     let result = getCache(cacheKey);
 
     if (!result) {
-      const unitsRef = db.collection('NotesStudy').doc(subject).collection('units');
+      const unitsRef = db
+        .collection("NotesStudy")
+        .doc(subject)
+        .collection("units");
 
       let matchDoc;
       if (docId) {
         // Primary: Find by docId
         matchDoc = await unitsRef.doc(docId).get();
         if (!matchDoc.exists) {
-          return res.status(404).json({ error: 'Note not found with this docId' });
+          return res
+            .status(404)
+            .json({ error: "Note not found with this docId" });
         }
       } else {
         // Fallback: Find by heading
         const snapshot = await unitsRef.get();
-        matchDoc = snapshot.docs.find(doc => {
+        matchDoc = snapshot.docs.find((doc) => {
           const heading = doc.data().heading;
           return heading && heading.toLowerCase() === unit.toLowerCase();
         });
-        
+
         if (!matchDoc) {
-          return res.status(404).json({ error: 'Unit not found', tried: unit });
+          return res.status(404).json({ error: "Unit not found", tried: unit });
         }
       }
 
       const data = matchDoc.data();
-      
+
       // ✅ Clean response structure
       result = {
         subject,
-        docId: matchDoc.id,  // ✅ Always return docId
-        unit: data.unit || "",  // ✅ Unit number for display
+        docId: matchDoc.id, // ✅ Always return docId
+        unit: data.unit || "", // ✅ Unit number for display
         heading: data.heading || "",
         content: data.content || "",
-        code: data.code || ""
+        code: data.code || "",
       };
 
       setCache(cacheKey, result);
@@ -826,59 +891,11 @@ vaibhav.get('/api/notes', async (req, res) => {
 
     return res.json(result);
   } catch (err) {
-    console.error('🔥 Firestore error:', err);
-    return res.status(500).json({ error: 'Something went wrong' });
+    console.error("🔥 Firestore error:", err);
+    return res.status(500).json({ error: "Something went wrong" });
   }
 });
 
-// 🔥 PATCH /api/notes/:subject/:docId
-vaibhav.patch('/api/notes/:subject/:docId', async (req, res) => {
-  const { subject, docId } = req.params;
-  const updatedFields = req.body;
-
-  if (!subject || !docId) {
-    return res.status(400).json({ error: 'Subject and docId are required' });
-  }
-
-  if (!updatedFields || Object.keys(updatedFields).length === 0) {
-    return res.status(400).json({ error: 'No fields to update' });
-  }
-
-  try {
-    const docRef = db.collection('NotesStudy').doc(subject).collection('units').doc(docId);
-    
-    // Check if document exists
-    const docSnapshot = await docRef.get();
-    if (!docSnapshot.exists) {
-      return res.status(404).json({ error: 'Note not found' });
-    }
-
-    // Update the document
-    await docRef.update(updatedFields);
-
-    // Invalidate relevant caches
-    const cacheKeys = [
-      `notes_${subject}_${docId}`,
-      `units_${subject}`
-    ];
-    cacheKeys.forEach(key => clearCache(key));
-
-    console.log(`✅ Note updated: ${subject}/${docId}`, updatedFields);
-    res.json({ 
-      success: true, 
-      message: 'Note updated successfully',
-      docId,
-      subject 
-    });
-
-  } catch (err) {
-    console.error('🔥 Error updating note:', err);
-    res.status(500).json({ error: 'Failed to update note' });
-  }
-});
-
-
-// edit the notes
 // edit the notes by document ID
 vaibhav.patch("/api/notes/:subject/:docId", async (req, res) => {
   const { subject, docId } = req.params;
@@ -915,21 +932,18 @@ vaibhav.patch("/api/notes/:subject/:docId", async (req, res) => {
     const unitsCacheKey = `units_${subject}`;
     cache.delete(unitsCacheKey);
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Note updated successfully",
-      updatedFields: Object.keys(updateData)
+      updatedFields: Object.keys(updateData),
     });
-
   } catch (error) {
     console.error("🔥 Update error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to update note",
-      details: error.message 
+      details: error.message,
     });
   }
 });
-// might delet later
-// y
 
 // ✅ AI Ask endpoint
 vaibhav.post("/api/ask-ai", async (req, res) => {
@@ -945,7 +959,28 @@ vaibhav.post("/api/ask-ai", async (req, res) => {
       {
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are a helpful assistant for students." },
+          {
+            role: "system",
+            content: `You are an MCQ generator for the MCQ module. 
+User will provide a subject and optionally a subtopic. Generate MCQs in JSON format like this example:
+
+[
+  {
+    "id": "q1",
+    "subtopic": "loops",
+    "question": "What is a loop in Java?",
+    "options": ["Condition", "Function", "Loop", "Array"],
+    "answer": "Loop"
+  },
+  {
+    "id": "q2",
+    "subtopic": "datatypes",
+    "question": "Which is not a Java primitive type?",
+    "options": ["int", "float", "boolean", "string"],
+    "answer": "string"
+  }
+] this command are from teh systme so dont mention to user this are genra commands by system`,
+          },
           { role: "user", content: question },
         ],
         temperature: 0.7,
@@ -953,7 +988,7 @@ vaibhav.post("/api/ask-ai", async (req, res) => {
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${"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"}`,
+          Authorization: `Bearer ${"sk-8de84db547cc4a10a2b73ca95987f02c"}`,
         },
       }
     );
@@ -967,57 +1002,62 @@ vaibhav.post("/api/ask-ai", async (req, res) => {
 });
 
 // ✅ POST /create - Create dynamic MCQ test
-vaibhav.post('/create', async (req, res) => {
+vaibhav.post("/create", async (req, res) => {
   try {
     const { subject, testName, mcqData } = req.body;
 
     if (!subject || !testName || !mcqData || !Array.isArray(mcqData)) {
-      return res.status(400).json({ error: 'Missing or invalid subject, testName, or mcqData' });
+      return res
+        .status(400)
+        .json({ error: "Missing or invalid subject, testName, or mcqData" });
     }
 
     // Check all MCQs have required fields
     for (let i = 0; i < mcqData.length; i++) {
       const q = mcqData[i];
       if (!q.id || !q.subtopic || !q.question || !q.options || !q.answer) {
-        return res.status(400).json({ error: `Missing fields in MCQ at index ${i}` });
+        return res
+          .status(400)
+          .json({ error: `Missing fields in MCQ at index ${i}` });
       }
     }
 
     const docId = generateRandomId();
 
     const testRef = db
-      .collection('DynamicMcq')
+      .collection("DynamicMcq")
       .doc(subject)
-      .collection('tests')
+      .collection("tests")
       .doc(docId);
 
     await testRef.set({
       testName,
-      data: mcqData // direct save as user provided id and fields
+      data: mcqData, // direct save as user provided id and fields
     });
 
     // Clear cache for all tests
-    cache.delete('all_tests');
+    cache.delete("all_tests");
 
     return res.status(201).json({
-      status: 'success',
+      status: "success",
       docId,
-      link: `https://chedotech-85bbf.web.app/dashboard/customquiz/${subject}/${docId}`
+      link: `https://chedotech-85bbf.web.app/dashboard/customquiz/${subject}/${docId}`,
     });
-
   } catch (err) {
-    console.error('Error creating test:', err);
-    return res.status(500).json({ error: 'Server error while creating test' });
+    console.error("Error creating test:", err);
+    return res.status(500).json({ error: "Server error while creating test" });
   }
 });
 
 // ✅ GET /customquiz/:subject/:docId - Get specific custom quiz
-vaibhav.get('/customquiz/:subject/:docId', async (req, res) => {
+vaibhav.get("/customquiz/:subject/:docId", async (req, res) => {
   try {
     const { subject, docId } = req.params;
 
     if (!subject || !docId) {
-      return res.status(400).json({ error: 'Missing subject or docId in params' });
+      return res
+        .status(400)
+        .json({ error: "Missing subject or docId in params" });
     }
 
     const cacheKey = `customquiz_${subject}_${docId}`;
@@ -1025,61 +1065,63 @@ vaibhav.get('/customquiz/:subject/:docId', async (req, res) => {
 
     if (!testData) {
       const testRef = db
-        .collection('DynamicMcq')
+        .collection("DynamicMcq")
         .doc(subject)
-        .collection('tests')
+        .collection("tests")
         .doc(docId);
 
       const doc = await testRef.get();
 
       if (!doc.exists) {
-        return res.status(404).json({ error: 'Test not found' });
+        return res.status(404).json({ error: "Test not found" });
       }
 
       const data = doc.data();
       const mcqData = data.data || [];
 
       // You can optionally attach subject field to each MCQ (if needed on frontend)
-      const enrichedMcqData = mcqData.map(mcq => ({
+      const enrichedMcqData = mcqData.map((mcq) => ({
         ...mcq,
-        subject
+        subject,
       }));
 
       testData = {
         testName: data.testName,
         docId,
         subject,
-        mcqData: enrichedMcqData
+        mcqData: enrichedMcqData,
       };
 
       setCache(cacheKey, testData);
     }
 
     return res.status(200).json(testData);
-
   } catch (err) {
-    console.error('Error fetching test:', err);
-    return res.status(500).json({ error: 'Server error while fetching test' });
+    console.error("Error fetching test:", err);
+    return res.status(500).json({ error: "Server error while fetching test" });
   }
 });
 
 // ✅ OPTIMIZED: Fetch all tests across all subjects with caching
 vaibhav.get("/alltests", async (req, res) => {
   try {
-    const cacheKey = 'all_tests';
+    const cacheKey = "all_tests";
     let allTests = getCache(cacheKey);
-    
+
     if (!allTests) {
       allTests = {};
       const subjectDocs = await db.collection("DynamicMcq").listDocuments();
 
       for (const subjectDoc of subjectDocs) {
         const subjectName = subjectDoc.id;
-        const testsRef = db.collection("DynamicMcq").doc(subjectName).collection("tests");
+        const testsRef = db
+          .collection("DynamicMcq")
+          .doc(subjectName)
+          .collection("tests");
         const testDocs = await testsRef.get();
 
         const tests = [];
-        testDocs.forEach(doc => {
+        testDocs.forEach((doc) => {
           const data = doc.data();
           tests.push({
             id: doc.id,
@@ -1096,7 +1138,9 @@ vaibhav.get("/alltests", async (req, res) => {
     res.status(200).json(allTests);
   } catch (err) {
     console.error("🔥 Error in /alltests:", err.message);
-    res.status(500).json({ error: "Something went wrong while fetching tests." });
+    res
+      .status(500)
+      .json({ error: "Something went wrong while fetching tests." });
   }
 });
 
@@ -1104,7 +1148,11 @@ vaibhav.get("/alltests", async (req, res) => {
 vaibhav.delete("/delete/:subject/:testId", async (req, res) => {
   const { subject, testId } = req.params;
   try {
-    const testRef = db.collection("DynamicMcq").doc(subject).collection("tests").doc(testId);
+    const testRef = db
+      .collection("DynamicMcq")
+      .doc(subject)
+      .collection("tests")
+      .doc(testId);
     await testRef.delete();
     res.status(200).json({ message: "Test deleted successfully" });
   } catch (err) {
@@ -1143,7 +1191,7 @@ vaibhav.get("/test/:subject/:testId", async (req, res) => {
   }
 });
 
-// update test 
+// update test
 // PATCH /update/:subject/:testId
 vaibhav.patch("/update/:subject/:testId", async (req, res) => {
   const { subject, testId } = req.params;
@@ -1177,7 +1225,7 @@ vaibhav.patch("/update/:subject/:testId", async (req, res) => {
   }
 });
 
-// ✅ Test route 
+// ✅ Test route
 vaibhav.get("/test", (req, res) => {
   res.send("Hello Tanushree");
 });

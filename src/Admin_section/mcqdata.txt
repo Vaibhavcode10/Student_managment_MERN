@@ -141,3 +141,8 @@ Print all divisors of a number
 Count digits without converting to string
 
 Print ASCII value of character
+ <h1 className="text-2xl font-bold">
+          {editMode ? "Edit Test" : "All Tests"}
+        </h1>
+
+        mcq genrator :sk-8de84db547cc4a10a2b73ca95987f02c
