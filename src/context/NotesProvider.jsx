@@ -21,6 +21,8 @@ export const NotesProvider = ({ children }) => {
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [isLoadingNote, setIsLoadingNote] = useState(false);
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isDeletingNote, setIsDeletingNote] = useState(false);
 
   // Cache to prevent duplicate API calls
   const cache = useRef({
@@ -161,7 +163,6 @@ export const NotesProvider = ({ children }) => {
   );
 
   // 📄 Fetch note data with caching
-
   const fetchNote = useCallback(
     async (unitObj) => {
       if (!subject || !unitObj?.docId) return;
@@ -204,6 +205,7 @@ export const NotesProvider = ({ children }) => {
     [subject, isLoadingNote]
   );
 
+  // 💾 Update existing note
   const updateNote = async (noteData, updatedFields, subject) => {
     console.log("Saving note with docId:", noteData.docId);
 
@@ -258,6 +260,150 @@ export const NotesProvider = ({ children }) => {
     }
   };
 
+  // ➕ Add new note
+  const addNote = useCallback(async (noteData) => {
+    const { subject: noteSubject, code, content, heading, unit } = noteData;
+
+    // Validation
+    if (!noteSubject || !heading || !unit) {
+      return { 
+        success: false, 
+        error: 'Missing required fields: subject, heading, unit' 
+      };
+    }
+
+    setIsAddingNote(true);
+
+    try {
+      console.log("➕ Adding new note...", noteData);
+      
+      const res = await fetch(`${BASE_URL}/add-note`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: noteSubject,
+          code: code || '',
+          content: content || ' ',
+          heading,
+          unit: parseFloat(unit)
+        }),
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`HTTP ${res.status}: Failed to parse JSON response`);
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: Failed to add note`);
+      }
+
+      // Invalidate cache for this subject to force refresh
+      if (cache.current.units.has(noteSubject)) {
+        cache.current.units.delete(noteSubject);
+      }
+
+      // If we're currently viewing this subject, refresh the units
+      if (subject === noteSubject) {
+        await fetchUnits(noteSubject);
+      }
+
+      console.log("✅ Note added successfully:", data);
+      return { 
+        success: true, 
+        message: data.message || "Note added successfully",
+        docId: data.docId 
+      };
+
+    } catch (err) {
+      console.error("❌ Error adding note:", err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setIsAddingNote(false);
+    }
+  }, [subject, fetchUnits]);
+
+  // 🗑️ Delete note
+// 🗑️ Delete note - Updated version
+const deleteNote = useCallback(async (noteSubject, docId) => {
+  // Validation
+  if (!noteSubject || !docId) {
+    return { 
+      success: false, 
+      error: 'Missing required fields: subject, docId' 
+    };
+  }
+
+  setIsDeletingNote(true);
+
+  try {
+    console.log("🗑️ Deleting note...", { subject: noteSubject, docId });
+    
+    const res = await fetch(`https://api-e5q6islzdq-uc.a.run.app/delete-note`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: noteSubject,
+        docid: docId // Note: API expects 'docid', not 'docId'
+      }),
+    });
+
+    // Check if response is ok first
+    if (!res.ok) {
+      // Try to get error message, but handle cases where response isn't JSON
+      let errorMessage = `HTTP ${res.status}: Request failed`;
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // If JSON parsing fails, use status text or generic message
+        errorMessage = res.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Only try to parse JSON if response was successful
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      // If successful but no JSON, create a success response
+      data = { message: "Note deleted successfully" };
+    }
+
+    // Invalidate relevant caches
+    const cacheKey = `${noteSubject}-${docId}`;
+    cache.current.notes.delete(cacheKey);
+    
+    // Invalidate units cache for this subject to force refresh
+    if (cache.current.units.has(noteSubject)) {
+      cache.current.units.delete(noteSubject);
+    }
+
+    // If we're currently viewing this subject, refresh the units
+    if (subject === noteSubject) {
+      await fetchUnits(noteSubject);
+      // If the deleted note was currently active, clear it
+      if (note?.docId === docId) {
+        setNote(null);
+      }
+    }
+
+    console.log("✅ Note deleted successfully:", data);
+    return { 
+      success: true, 
+      message: data.message || "Note deleted successfully" 
+    };
+
+  } catch (err) {
+    console.error("❌ Error deleting note:", err.message);
+    return { success: false, error: err.message };
+  } finally {
+    setIsDeletingNote(false);
+  }
+}, [subject, fetchUnits, note]);
   return (
     <NotesContext.Provider
       value={{
@@ -270,12 +416,15 @@ export const NotesProvider = ({ children }) => {
         isLoadingSubjects,
         isLoadingUnits,
         isLoadingNote,
+        isAddingNote,
+        isDeletingNote,
         // Functions
-
         fetchSubjects,
         fetchUnits,
         fetchNote,
         updateNote,
+        addNote,
+        deleteNote,
       }}
     >
       {children}

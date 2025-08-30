@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNotes } from "../context/NotesProvider";
 import { useUser } from "../context/UserProvider";
-import { Menu, Eye, Edit3, Save, CheckCircle, XCircle, Code, X } from "lucide-react";
+import {
+  Menu,
+  Eye,
+  Edit3,
+  Save,
+  CheckCircle,
+  XCircle,
+  Code,
+  X,
+  Trash2,
+} from "lucide-react";
 import MonacoEditor from "@monaco-editor/react";
 import DOMPurify from "dompurify";
 import HtmlViewer from "./HtmlViewer";
@@ -18,6 +28,9 @@ export default function Editnotes() {
     fetchNote,
     updateNote,
     isLoadingNote,
+    addNote,
+    deleteNote, // Add this
+    isDeletingNote, // Add this
   } = useNotes();
 
   const [activeUnit, setActiveUnit] = useState(null);
@@ -44,7 +57,7 @@ export default function Editnotes() {
       const first = sorted[0];
       if (first?.docId) {
         setActiveDocId(first.docId);
-        fetchNote(first);   // pass full unit object
+        fetchNote(first); // pass full unit object
       }
     }
   }, [units, activeDocId, fetchNote]);
@@ -55,13 +68,13 @@ export default function Editnotes() {
       setEditedCode(note.code || "");
       setEditedUnit(note.unit || "");
       setEditedHeading(note.heading || "");
-      setActiveDocId(note.docId || ""); 
+      setActiveDocId(note.docId || "");
     }
   }, [note]);
 
   const handleUnitClick = (unitObj) => {
     setActiveDocId(unitObj.docId);
-    fetchNote(unitObj);   // pass full object
+    fetchNote(unitObj); // pass full object
     setSaveStatus(null);
   };
 
@@ -87,7 +100,11 @@ export default function Editnotes() {
     }
 
     try {
-      const response = await updateNote({ docId: activeDocId }, updatedFields, subject);
+      const response = await updateNote(
+        { docId: activeDocId },
+        updatedFields,
+        subject
+      );
       if (response.success) {
         await fetchNote({ docId: activeDocId }); // refresh
         setSaveStatus("success");
@@ -96,7 +113,10 @@ export default function Editnotes() {
       }
     } catch (err) {
       setSaveStatus("error");
-      console.error(`❌ Error saving note for docId: ${activeDocId}`, err.message);
+      console.error(
+        `❌ Error saving note for docId: ${activeDocId}`,
+        err.message
+      );
     } finally {
       setIsSaving(false);
       setTimeout(() => setSaveStatus(null), 4000);
@@ -110,7 +130,7 @@ export default function Editnotes() {
   const getHeadingDisplay = (unitObj) => {
     const unitNum = unitObj.unit || "???";
     let headingText = unitObj.heading || "Untitled";
-    
+
     // Remove unitNum from the start of headingText if it exists
     if (headingText.startsWith(unitNum)) {
       headingText = headingText
@@ -118,10 +138,10 @@ export default function Editnotes() {
         .replace(/^[:.\s-]+/, "")
         .trim();
     }
-    
+
     // Remove all remaining numbers and periods from headingText, keeping only characters
-    headingText = headingText.replace(/[0-9.]/g, '').trim();
-    
+    headingText = headingText.replace(/[0-9.]/g, "").trim();
+
     // Return formatted string with unit number and cleaned heading
     return `Unit ${unitNum}: ${headingText || "Unit"}`;
   };
@@ -156,17 +176,75 @@ export default function Editnotes() {
     react: "React.js",
   };
 
+  //add note
+  const handleAddNote = async () => {
+    const result = await addNote({
+      subject: "react",
+      heading: "React Hooks Introduction",
+      unit: 1,
+      content: "<p>Learn about useState and useEffect</p>",
+      code: "const [count, setCount] = useState(0);",
+    });
+
+    if (result.success) {
+      console.log("Note added with ID:", result.docId);
+    } else {
+      console.error("Failed to add note:", result.error);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!subject || !activeDocId) {
+      console.warn("No subject or docId selected for deletion");
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 5000);
+      return;
+    }
+console.log(subject,activeDocId);
+   
+      try {
+        const result = await deleteNote(subject, activeDocId);
+        if (result.success) {
+          setSaveStatus("success");
+          setNote(null);
+          setActiveDocId(null);
+         
+          if (units.length > 1) {
+            const remainingUnits = units.filter(
+              (unit) => unit.docId !== activeDocId
+            );
+            if (remainingUnits.length > 0) {
+              const firstUnit = remainingUnits[0];
+              setActiveDocId(firstUnit.docId);
+              fetchNote(firstUnit);
+            }
+          }
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (err) {
+        setSaveStatus("error");
+        console.error("Failed to delete note:", err.message);
+      } finally {
+        setTimeout(() => setSaveStatus(null), 4000);
+      }
+    
+  };
   return (
     <div
       className={`flex h-screen overflow-hidden font-sans ${
-        theme === "light" ? "bg-gray-100 text-gray-900" : "bg-[#121212] text-white"
+        theme === "light"
+          ? "bg-gray-100 text-gray-900"
+          : "bg-[#121212] text-white"
       }`}
     >
       {/* Sidebar */}
       {showSidebar && (
         <div
           className={`w-[280px] p-4 border-r shadow-sm flex flex-col transition-all duration-300 ${
-            theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
+            theme === "light"
+              ? "bg-white border-gray-200"
+              : "bg-[#1e1e1e] border-gray-700"
           }`}
         >
           <select
@@ -184,7 +262,11 @@ export default function Editnotes() {
           >
             <option value="">-- Select Subject --</option>
             {subjects.map((subj) => (
-              <option key={subj} value={subj} className="text-base text-black dark:text-white">
+              <option
+                key={subj}
+                value={subj}
+                className="text-base text-black dark:text-white"
+              >
                 {subjectNameMap[subj] || subj}
               </option>
             ))}
@@ -199,15 +281,15 @@ export default function Editnotes() {
                 return (
                   <li
                     key={unitId}
-                    onClick={() => handleUnitClick(unit)}   // ✅ pass full unit object
+                    onClick={() => handleUnitClick(unit)} // ✅ pass full unit object
                     className={`cursor-pointer mb-2 p-3 rounded-md border text-sm transition-all duration-200 hover:shadow-sm ${
                       isActive
                         ? theme === "light"
                           ? "bg-blue-100 border-blue-300 text-blue-900"
                           : "bg-blue-900 border-blue-600 text-blue-100"
                         : theme === "light"
-                          ? "bg-gray-50 border-gray-300 hover:bg-gray-100"
-                          : "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                        ? "bg-gray-50 border-gray-300 hover:bg-gray-100"
+                        : "bg-gray-800 border-gray-700 hover:bg-gray-700"
                     }`}
                   >
                     {getHeadingDisplay(unit)}
@@ -224,14 +306,18 @@ export default function Editnotes() {
         {/* Top Header with Controls */}
         <div
           className={`absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 border-b ${
-            theme === "light" ? "bg-white border-gray-200" : "bg-[#1e1e1e] border-gray-700"
+            theme === "light"
+              ? "bg-white border-gray-200"
+              : "bg-[#1e1e1e] border-gray-700"
           }`}
         >
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowSidebar((prev) => !prev)}
               className={`p-2 rounded-md transition-colors ${
-                theme === "light" ? "text-gray-600 hover:bg-gray-100" : "text-gray-300 hover:bg-gray-700"
+                theme === "light"
+                  ? "text-gray-600 hover:bg-gray-100"
+                  : "text-gray-300 hover:bg-gray-700"
               }`}
               title={showSidebar ? "Hide Sidebar" : "Show Sidebar"}
             >
@@ -245,8 +331,8 @@ export default function Editnotes() {
                     ? "bg-blue-100 text-blue-600"
                     : "bg-blue-900 text-blue-300"
                   : theme === "light"
-                    ? "text-gray-600 hover:bg-gray-100"
-                    : "text-gray-300 hover:bg-gray-700"
+                  ? "text-gray-600 hover:bg-gray-100"
+                  : "text-gray-300 hover:bg-gray-700"
               }`}
               title="View Mode"
             >
@@ -260,8 +346,8 @@ export default function Editnotes() {
                     ? "bg-green-100 text-green-600"
                     : "bg-green-900 text-green-300"
                   : theme === "light"
-                    ? "text-gray-600 hover:bg-gray-100"
-                    : "text-gray-300 hover:bg-gray-700"
+                  ? "text-gray-600 hover:bg-gray-100"
+                  : "text-gray-300 hover:bg-gray-700"
               }`}
               title="Edit Mode"
             >
@@ -276,8 +362,8 @@ export default function Editnotes() {
                       ? "bg-purple-100 text-purple-600"
                       : "bg-purple-900 text-purple-300"
                     : theme === "light"
-                      ? "text-gray-600 hover:bg-gray-100"
-                      : "text-gray-300 hover:bg-gray-700"
+                    ? "text-gray-600 hover:bg-gray-100"
+                    : "text-gray-300 hover:bg-gray-700"
                 }`}
                 title={showCodePanel ? "Hide Code Panel" : "Show Code Panel"}
               >
@@ -286,7 +372,6 @@ export default function Editnotes() {
             )}
             <button
               onClick={saveChanges}
-              
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 isSaving
                   ? "bg-gray-400 text-white cursor-not-allowed"
@@ -296,7 +381,34 @@ export default function Editnotes() {
             >
               <Save className="w-4 h-4" />
             </button>
+
+            <button
+              onClick={handleDeleteNote}
+              disabled={isDeletingNote || !activeDocId}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center ${
+                isDeletingNote || !activeDocId
+                  ? "bg-gray-400 text-white cursor-not-allowed"
+                  : "bg-red-500 text-white hover:bg-red-600"
+              }`}
+              title="Delete Note"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+
           </div>
+
           <div className="flex flex-wrap items-center gap-3">
             <label
               className={`text-sm font-medium ${
@@ -320,7 +432,9 @@ export default function Editnotes() {
             ) : (
               <span
                 className={`text-left px-2 py-1.5 rounded-md text-sm min-w-[200px] ${
-                  theme === "light" ? "bg-gray-100 text-gray-800" : "bg-gray-700 text-white"
+                  theme === "light"
+                    ? "bg-gray-100 text-gray-800"
+                    : "bg-gray-700 text-white"
                 }`}
               >
                 {editedHeading || "No heading"}
@@ -348,7 +462,9 @@ export default function Editnotes() {
             ) : (
               <span
                 className={`px-2 py-1.5 rounded-md text-sm w-14 text-center ${
-                  theme === "light" ? "bg-gray-100 text-gray-800" : "bg-gray-700 text-white"
+                  theme === "light"
+                    ? "bg-gray-100 text-gray-800"
+                    : "bg-gray-700 text-white"
                 }`}
               >
                 {editedUnit || "N/A"}
@@ -364,8 +480,8 @@ export default function Editnotes() {
               saveStatus === "success"
                 ? "bg-green-100 text-green-800 border border-green-300"
                 : saveStatus === "warning"
-                  ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
-                  : "bg-red-100 text-red-800 border border-red-300"
+                ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+                : "bg-red-100 text-red-800 border border-red-300"
             }`}
           >
             {saveStatus === "success" ? (
@@ -396,16 +512,25 @@ export default function Editnotes() {
               }`}
             >
               {editedHtml || editedCode ? (
-                <HtmlViewer htmlContent={getSanitizedHtml()} codeContent={editedCode} />
+                <HtmlViewer
+                  htmlContent={getSanitizedHtml()}
+                  codeContent={editedCode}
+                />
               ) : (
                 <div className="p-4 text-grey-400 italic">
-                  {isLoadingNote ? "Loading note..." : "Select a unit to view the notes..."}
+                  {isLoadingNote
+                    ? "Loading note..."
+                    : "Select a unit to view the notes..."}
                 </div>
               )}
             </div>
           ) : (
             <div className="h-full w-full flex relative">
-              <div className={`h-full transition-all duration-300 ${showCodePanel ? "w-[50%]" : "w-full"}`}>
+              <div
+                className={`h-full transition-all duration-300 ${
+                  showCodePanel ? "w-[50%]" : "w-full"
+                }`}
+              >
                 <MonacoEditor
                   height="100%"
                   language="html"
@@ -437,12 +562,16 @@ export default function Editnotes() {
               {showCodePanel && (
                 <div
                   className={`w-[50%] h-full border-l flex flex-col transition-all duration-300 ${
-                    theme === "light" ? "bg-gray-50 border-gray-200" : "bg-[#252525] border-gray-700"
+                    theme === "light"
+                      ? "bg-gray-50 border-gray-200"
+                      : "bg-[#252525] border-gray-700"
                   }`}
                 >
                   <div
                     className={`px-3 py-2 border-b flex items-center justify-between ${
-                      theme === "light" ? "bg-gray-100 border-gray-200" : "bg-[#2d2d2d] border-gray-700"
+                      theme === "light"
+                        ? "bg-gray-100 border-gray-200"
+                        : "bg-[#2d2d2d] border-gray-700"
                     }`}
                   >
                     <h6 className="text-sm font-medium">Code Blocks</h6>

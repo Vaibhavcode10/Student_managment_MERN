@@ -1225,6 +1225,58 @@ vaibhav.patch("/update/:subject/:testId", async (req, res) => {
   }
 });
 
+// POST API to add a note
+vaibhav.post('/add-note', async (req, res) => {
+  const { subject, code, content, heading,  unit } = req.body;
+
+  if (!subject || !heading ||  !unit) {
+    return res.status(400).json({ error: 'Missing required fields: subject, heading, id, unit' });
+  }
+
+  const subjectRef = db.collection("NotesStudy").doc(subject);
+  const subjectDoc = await subjectRef.get();
+
+  if (!subjectDoc.exists) {
+    await subjectRef.set({}); // Create empty document for the subject if it doesn't exist
+  }
+
+  const noteData = {
+    code: code || '',
+    content: content || ' ',
+    heading,
+    unit: parseFloat(unit) // Assuming unit is a number
+  };
+
+  try {
+    const newDocRef = await subjectRef.collection("units").add(noteData);
+    res.status(201).json({ message: 'Note added successfully', docId: newDocRef.id });
+  } catch (error) {
+    res.status(500).json({ error: 'Error adding note: ' + error.message });
+  }
+});
+
+// DELETE API to delete a note
+vaibhav.delete('/delete-note', async (req, res) => {
+  const { subject, docid } = req.body;
+
+  if (!subject || !docid) {
+    return res.status(400).json({ error: 'Missing required fields: subject, docid' });
+  }
+
+  const docRef = db.collection("NotesStudy").doc(subject).collection("units").doc(docid);
+
+  try {
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    await docRef.delete();
+    res.status(200).json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error deleting note: ' + error.message });
+  }
+});
+
 // ✅ Test route
 vaibhav.get("/test", (req, res) => {
   res.send("Hello Tanushree");

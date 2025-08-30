@@ -114,6 +114,7 @@ const CrudStudents = () => {
   if (studentsError) return <div className={`${styles.bg} w-full h-screen flex items-center justify-center ${styles.error}`}>{studentsError}</div>;
 
   return (
+ <>
     <div className={`${styles.bg} w-full min-h-screen flex flex-col`}>
       <div className="w-full max-w-9xl mx-auto flex-grow p-1">
         {/* Back Button */}
@@ -323,7 +324,7 @@ const CrudStudents = () => {
           </div>
         )}
       </div>
-    </div>
+    </div></>
   );
 };
 
