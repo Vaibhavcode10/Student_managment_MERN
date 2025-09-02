@@ -20,6 +20,7 @@ import ComplaintCard from "./Allfiles/ComplaintCard";
 import Notes from "./Allfiles/Notes";
 import CustomQuizPage from "./Admin_section/CustomQuizPage";
 import CreateMcqTestPage from "./Admin_section/CreateMcqTestPage";
+import Theorypaper from "./Admin_section/Theorypaper";
 const AppRoutes = () => {
   const { user } = useUser();
 
@@ -58,6 +59,7 @@ const AppRoutes = () => {
         <Route path="editnotes" element={<Edinotes />} />
         <Route path="testapi" element={<TryModule />} />
         <Route path="customquiz" element={<CreateMcqTestPage />} />
+         <Route path="genratetest" element={<Theorypaper />} />
 <Route path="customquiz/:subject/:docId" element={<CustomQuizPage />} />
 
         

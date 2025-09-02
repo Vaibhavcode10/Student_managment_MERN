@@ -1014,6 +1014,55 @@ Return **only JSON**, no explanations, no extra text.
   }
 });
 
+
+//create theory notes
+vaibhav.post("/api/generate-que", async (req, res) => {
+  const { subject, note, prompt } = req.body;
+  if (!subject || !note) {
+    return res.status(400).json({ error: "Subject and note are required." });
+  }
+
+  try {
+    // Construct the user message with an optional prompt
+    let userContent = `Subject: ${subject}\nNote: ${note}`;
+    if (prompt) {
+      userContent += `\nPrompt: ${prompt}`;
+    }
+
+    const response = await axios.post(
+      "https://api.deepseek.com/v1/chat/completions",
+      {
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content: "Generate theory notes or questions in Markdown (## Note # or ## Question #) based on subject and note. Use prompt if provided. No extra text."
+          },
+          { 
+            role: "user", 
+            content: userContent 
+          }
+        ],
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer sk-2cd642210ef24f79bc39f4a584db9c24`,
+        },
+      }
+    );
+
+    const markdownContent = response.data.choices[0].message.content.trim();
+
+    res.set('Content-Type', 'text/markdown');
+    res.send(markdownContent);
+  } catch (error) {
+    console.error("AI error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "AI failed to respond." });
+  }
+});
+
 // ✅ POST /create - Create dynamic MCQ test
 vaibhav.post("/create", async (req, res) => {
   try {

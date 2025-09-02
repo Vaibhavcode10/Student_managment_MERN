@@ -50,6 +50,7 @@ const CreateMcqTestPage = () => {
   const [copiedStates, setCopiedStates] = useState({});
   const [aimcq, setAimcq] = useState([]);
   const [genratedmcq, setGenratedmcq] = useState([]);
+  const [mcqText, setMcqText] = useState(""); // editable JSON text
   const API_BASE = "https://api-e5q6islzdq-uc.a.run.app";
 
   const fetchTests = async () => {
@@ -99,56 +100,59 @@ const CreateMcqTestPage = () => {
     setRefreshing(false);
   };
 
-  const handleCreateTest = async () => {
-    setLoading(true);
-    try {
-      if (!subject || !testName || !jsonInput) {
-        alert("Please fill in all fields");
-        return;
-      }
-      const mcqData = JSON.parse(jsonInput);
-      if (!Array.isArray(mcqData) || mcqData.length === 0) {
-        alert("MCQ data must be a non-empty array");
-        return;
-      }
-      const transformedData = mcqData.map((q, index) => {
-        if (
-          typeof q.question !== "string" ||
-          !Array.isArray(q.options) ||
-          q.options.length !== 4 ||
-          typeof q.answer !== "string" ||
-          typeof q.subtopic !== "string"
-        ) {
-          throw new Error("Invalid MCQ format");
-        }
-        return {
-          id: q.id || `q${index + 1}`,
-          subtopic: q.subtopic,
-          question: isHex(q.question) ? q.question : stringToHex(q.question),
-          options: q.options.map((opt) =>
-            isHex(opt) ? opt : stringToHex(opt)
-          ),
-          answer: isHex(q.answer) ? q.answer : stringToHex(q.answer),
-        };
-      });
-
-      const response = await axios.post(`${API_BASE}/create`, {
-        subject,
-        testName,
-        mcqData: transformedData,
-      });
-
-      setRecentlyCreatedLink(response.data.link);
-      setJsonInput("");
-      setTestName("");
-      setSubject("java");
-    } catch (err) {
-      console.error("Failed to create test:", err);
-      alert("Invalid JSON format or server error.");
-    } finally {
-      setLoading(false);
+const handleCreateTest = async () => {
+  setLoading(true);
+  try {
+    if (!subject || !testName || !mcqText) {
+      alert("Please fill in all fields");
+      return;
     }
-  };
+
+    const mcqData = JSON.parse(mcqText); // parse from textarea
+    if (!Array.isArray(mcqData) || mcqData.length === 0) {
+      alert("MCQ data must be a non-empty array");
+      return;
+    }
+
+    const transformedData = mcqData.map((q, index) => {
+      if (
+        typeof q.question !== "string" ||
+        !Array.isArray(q.options) ||
+        q.options.length !== 4 ||
+        typeof q.answer !== "string" ||
+        typeof q.subtopic !== "string"
+      ) {
+        throw new Error("Invalid MCQ format");
+      }
+      return {
+        id: q.id || `q${index + 1}`,
+        subtopic: q.subtopic,
+        question: isHex(q.question) ? q.question : stringToHex(q.question),
+        options: q.options.map((opt) =>
+          isHex(opt) ? opt : stringToHex(opt)
+        ),
+        answer: isHex(q.answer) ? q.answer : stringToHex(q.answer),
+      };
+    });
+
+    const response = await axios.post(`${API_BASE}/create`, {
+      subject,
+      testName,
+      mcqData: transformedData,
+    });
+
+    setRecentlyCreatedLink(response.data.link);
+    setMcqText(""); // clear textarea
+    setTestName("");
+    setSubject("java");
+  } catch (err) {
+    console.error("Failed to create test:", err);
+    alert("Invalid JSON format or server error.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleCancel = async () => {
     setShowForm(false);
@@ -359,36 +363,36 @@ const CreateMcqTestPage = () => {
 
   //ai mcq genrator
 
-  const fetchAIMCQs = async (question) => {
-    if (!question) return;
+ const fetchAIMCQs = async (question) => {
+  if (!question) return;
 
-    try {
-      const res = await axios.post(`${API_BASE}/api/ask-ai`, { question });
+  try {
+    const res = await axios.post(`${API_BASE}/api/ask-ai`, { question });
 
-      let aiAnswer = res.data.answer;
+    let aiAnswer = res.data.answer;
 
-      console.log("original mcq are", aiAnswer);
-      setGenratedmcq(aiAnswer); // send array of objects directly
-    } catch (err) {
-      console.error("Failed to fetch AI MCQs:", err);
-      alert("Failed to generate MCQs from AI");
-    }
-  };
+    console.log("original mcq are", aiAnswer);
+    setGenratedmcq(aiAnswer); 
+    setMcqText(JSON.stringify(aiAnswer, null, 2)); // sync into textarea
+  } catch (err) {
+    console.error("Failed to fetch AI MCQs:", err);
+    alert("Failed to generate MCQs from AI");
+  }
+};
 
-  const handleGenerateMCQs = async () => {
-    if (!subject) {
-      alert("Please enter the subject at the top first!");
-      return;
-    }
-    if (!aimcq) {
-      alert("Please enter a prompt for AI MCQ generation");
-      return;
-    }
+const handleGenerateMCQs = async () => {
+  if (!subject) {
+    alert("Please enter the subject at the top first!");
+    return;
+  }
+  if (!aimcq) {
+    alert("Please enter a prompt for AI MCQ generation");
+    return;
+  }
 
-    const question = `${subject}: ${aimcq}`; // Combine subject + user prompt
-    await fetchAIMCQs(question, setGenratedmcq);
-  };
-
+  const question = `${subject}: ${aimcq}`;
+  await fetchAIMCQs(question);
+};
   return (
     <div>
       <div className="flex justify-between items-center"></div>
@@ -553,12 +557,12 @@ const CreateMcqTestPage = () => {
           </div>
 
           {/* Textarea for MCQs (AI generated or manual) */}
-          <textarea
-            rows="12"
-            placeholder={
-              editMode
-                ? "Edit MCQ data (shown as readable text, will be stored as hex)"
-                : `Optional: enter your MCQs manually in JSON format:
+        <textarea
+  rows="12"
+  placeholder={
+    editMode
+      ? "Edit MCQ data (shown as readable text, will be stored as hex)"
+      : `Optional: enter your MCQs manually in JSON format:
 [
   {
     "id": "q1",
@@ -568,11 +572,11 @@ const CreateMcqTestPage = () => {
     "answer": "Loop"
   }
 ]`
-            }
-            value={JSON.stringify(genratedmcq, null, 2)} // display JSON nicely
-           
-            className="p-2 border rounded-md font-mono w-full"
-          />
+  }
+  value={mcqText} // use editable state
+  onChange={(e) => setMcqText(e.target.value)} // now user can edit
+  className="p-2 border rounded-md font-mono w-full"
+/>
 
           {/* Create / Save button */}
           <button
