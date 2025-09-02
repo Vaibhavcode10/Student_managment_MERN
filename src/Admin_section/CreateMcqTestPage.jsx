@@ -367,15 +367,8 @@ const CreateMcqTestPage = () => {
 
       let aiAnswer = res.data.answer;
 
-      // Try parsing AI response to JSON
-      try {
-        aiAnswer = JSON.parse(aiAnswer);
-      } catch (parseErr) {
-        console.warn("AI response is not valid JSON:", parseErr);
-        // Keep as string if parsing fails
-      }
-
-      setAimcq(aiAnswer);
+      console.log("original mcq are", aiAnswer);
+      setGenratedmcq(aiAnswer); // send array of objects directly
     } catch (err) {
       console.error("Failed to fetch AI MCQs:", err);
       alert("Failed to generate MCQs from AI");
@@ -394,7 +387,6 @@ const CreateMcqTestPage = () => {
 
     const question = `${subject}: ${aimcq}`; // Combine subject + user prompt
     await fetchAIMCQs(question, setGenratedmcq);
-    console.log("AI MCQs:", genratedmcq);
   };
 
   return (
@@ -525,48 +517,48 @@ const CreateMcqTestPage = () => {
       )}
 
       {(showForm || editMode) && (
-    <div className="grid grid-cols-1 gap-4 p-4">
-  <input
-    type="text"
-    placeholder="Enter Test Name"
-    value={testName}
-    onChange={(e) => setTestName(e.target.value)}
-    className="p-2 border rounded-md"
-  />
-  <input
-    type="text"
-    placeholder="Enter Subject"
-    value={subject}
-    onChange={(e) => setSubject(e.target.value)}
-    className="p-2 border rounded-md"
-    disabled={editMode}
-  />
+        <div className="grid grid-cols-1 gap-4 p-4">
+          <input
+            type="text"
+            placeholder="Enter Test Name"
+            value={testName}
+            onChange={(e) => setTestName(e.target.value)}
+            className="p-2 border rounded-md"
+          />
+          <input
+            type="text"
+            placeholder="Enter Subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="p-2 border rounded-md"
+            disabled={editMode}
+          />
 
-  {/* Optional AI MCQ generator */}
-  <div className="flex gap-2 items-center">
-    <input
-      type="text"
-      placeholder="Optional: enter what MCQs to generate (AI)"
-      value={aimcq}
-      onChange={(e) => setAimcq(e.target.value)}
-      className="p-2 border rounded-md flex-1"
-    />
-    <button
-      onClick={handleGenerateMCQs}
-      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow flex items-center gap-2 transition"
-    >
-      <Plus size={16} />
-      Generate MCQs
-    </button>
-  </div>
+          {/* Optional AI MCQ generator */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="Optional: enter what MCQs to generate (AI)"
+              value={aimcq}
+              onChange={(e) => setAimcq(e.target.value)}
+              className="p-2 border rounded-md flex-1"
+            />
+            <button
+              onClick={handleGenerateMCQs}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow flex items-center gap-2 transition"
+            >
+              <Plus size={16} />
+              Generate MCQs
+            </button>
+          </div>
 
-  {/* Textarea for MCQs (AI generated or manual) */}
-  <textarea
-    rows="12"
-    placeholder={
-      editMode
-        ? "Edit MCQ data (shown as readable text, will be stored as hex)"
-        : `Optional: enter your MCQs manually in this JSON format:
+          {/* Textarea for MCQs (AI generated or manual) */}
+          <textarea
+            rows="12"
+            placeholder={
+              editMode
+                ? "Edit MCQ data (shown as readable text, will be stored as hex)"
+                : `Optional: enter your MCQs manually in JSON format:
 [
   {
     "id": "q1",
@@ -574,37 +566,29 @@ const CreateMcqTestPage = () => {
     "question": "What is a loop in Java?",
     "options": ["Condition", "Function", "Loop", "Array"],
     "answer": "Loop"
-  },
-  {
-    "id": "q2",
-    "subtopic": "datatypes",
-    "question": "Which is not a Java primitive type?",
-    "options": ["int", "float", "boolean", "string"],
-    "answer": "string"
   }
 ]`
-    }
-    value={JSON.stringify(genratedmcq, null, 2)} // Show generated MCQs here
-    readOnly
-    className="p-2 border rounded-md font-mono"
-  ></textarea>
+            }
+            value={JSON.stringify(genratedmcq, null, 2)} // display JSON nicely
+           
+            className="p-2 border rounded-md font-mono w-full"
+          />
 
-  {/* Create / Save button */}
-  <button
-    onClick={editMode ? handleSaveUpdate : handleCreateTest}
-    disabled={loading || loadingEdit}
-    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow disabled:opacity-50 transition"
-  >
-    {loading || loadingEdit
-      ? editMode
-        ? "Saving..."
-        : "Creating..."
-      : editMode
-      ? "Save Changes"
-      : "Create Test"}
-  </button>
-</div>
-
+          {/* Create / Save button */}
+          <button
+            onClick={editMode ? handleSaveUpdate : handleCreateTest}
+            disabled={loading || loadingEdit}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow disabled:opacity-50 transition"
+          >
+            {loading || loadingEdit
+              ? editMode
+                ? "Saving..."
+                : "Creating..."
+              : editMode
+              ? "Save Changes"
+              : "Create Test"}
+          </button>
+        </div>
       )}
 
       {loadingEdit && (

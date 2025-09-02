@@ -9,6 +9,15 @@ admin.initializeApp();
 const db = admin.firestore();
 const vaibhav = express();
 
+vaibhav.use(cors({ origin: "*" }));
+
+vaibhav.use((req, res, next) => {
+  req.setTimeout(540000);
+  res.setTimeout(540000);
+  next();
+});
+
+
 // ✅ CACHING LAYER - Add this to reduce repeated reads
 const cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -503,7 +512,7 @@ vaibhav.get("/complaints/:email", async (req, res) => {
 // ✅ OPTIMIZED: Get all problems with pagination
 vaibhav.get("/getallproblems", async (req, res) => {
   try {
-    const { limit = 50, startAfter } = req.query;
+    const { limit = 100, startAfter } = req.query;
     const cacheKey = `problems_${limit}_${startAfter || "first"}`;
 
     // Check cache first
@@ -948,10 +957,7 @@ vaibhav.patch("/api/notes/:subject/:docId", async (req, res) => {
 // ✅ AI Ask endpoint
 vaibhav.post("/api/ask-ai", async (req, res) => {
   const { question } = req.body;
-
-  if (!question) {
-    return res.status(400).json({ error: "No question provided." });
-  }
+  if (!question) return res.status(400).json({ error: "No question provided." });
 
   try {
     const response = await axios.post(
@@ -961,39 +967,46 @@ vaibhav.post("/api/ask-ai", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: `You are an MCQ generator for the MCQ module. 
-User will provide a subject and optionally a subtopic. Generate MCQs in JSON format like this example:
+            content: `
+You are an MCQ generator. Generate questions in the following JSON format only:
 
 [
-  {
+{
     "id": "q1",
     "subtopic": "loops",
     "question": "What is a loop in Java?",
     "options": ["Condition", "Function", "Loop", "Array"],
     "answer": "Loop"
   },
-  {
-    "id": "q2",
-    "subtopic": "datatypes",
-    "question": "Which is not a Java primitive type?",
-    "options": ["int", "float", "boolean", "string"],
-    "answer": "string"
-  }
-] this command are from teh systme so dont mention to user this are genra commands by system`,
+  ...
+
+]
+
+Return **only JSON**, no explanations, no extra text.
+            `
           },
-          { role: "user", content: question },
+          { role: "user", content: question }
         ],
         temperature: 0.7,
       },
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${"sk-8de84db547cc4a10a2b73ca95987f02c"}`,
+          Authorization: `Bearer ${"sk-2cd642210ef24f79bc39f4a584db9c24"}`,
         },
       }
     );
 
-    const aiAnswer = response.data.choices[0].message.content;
+    const raw = response.data.choices[0].message.content.trim();
+
+    let aiAnswer;
+    try {
+      aiAnswer = JSON.parse(raw); // array of MCQs ready for your module
+    } catch (err) {
+      console.warn("AI returned invalid JSON, sending empty array:", raw);
+      aiAnswer = [];
+    }
+
     res.json({ answer: aiAnswer });
   } catch (error) {
     console.error("AI error:", error?.response?.data || error.message);
@@ -1226,11 +1239,13 @@ vaibhav.patch("/update/:subject/:testId", async (req, res) => {
 });
 
 // POST API to add a note
-vaibhav.post('/add-note', async (req, res) => {
-  const { subject, code, content, heading,  unit } = req.body;
+vaibhav.post("/add-note", async (req, res) => {
+  const { subject, code, content, heading, unit } = req.body;
 
-  if (!subject || !heading ||  !unit) {
-    return res.status(400).json({ error: 'Missing required fields: subject, heading, id, unit' });
+  if (!subject || !heading || !unit) {
+    return res
+      .status(400)
+      .json({ error: "Missing required fields: subject, heading, id, unit" });
   }
 
   const subjectRef = db.collection("NotesStudy").doc(subject);
@@ -1241,39 +1256,47 @@ vaibhav.post('/add-note', async (req, res) => {
   }
 
   const noteData = {
-    code: code || '',
-    content: content || ' ',
+    code: code || "",
+    content: content || " ",
     heading,
-    unit: parseFloat(unit) // Assuming unit is a number
+    unit: parseFloat(unit), // Assuming unit is a number
   };
 
   try {
     const newDocRef = await subjectRef.collection("units").add(noteData);
-    res.status(201).json({ message: 'Note added successfully', docId: newDocRef.id });
+    res
+      .status(201)
+      .json({ message: "Note added successfully", docId: newDocRef.id });
   } catch (error) {
-    res.status(500).json({ error: 'Error adding note: ' + error.message });
+    res.status(500).json({ error: "Error adding note: " + error.message });
   }
 });
 
 // DELETE API to delete a note
-vaibhav.delete('/delete-note', async (req, res) => {
+vaibhav.delete("/delete-note", async (req, res) => {
   const { subject, docid } = req.body;
 
   if (!subject || !docid) {
-    return res.status(400).json({ error: 'Missing required fields: subject, docid' });
+    return res
+      .status(400)
+      .json({ error: "Missing required fields: subject, docid" });
   }
 
-  const docRef = db.collection("NotesStudy").doc(subject).collection("units").doc(docid);
+  const docRef = db
+    .collection("NotesStudy")
+    .doc(subject)
+    .collection("units")
+    .doc(docid);
 
   try {
     const doc = await docRef.get();
     if (!doc.exists) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: "Document not found" });
     }
     await docRef.delete();
-    res.status(200).json({ message: 'Note deleted successfully' });
+    res.status(200).json({ message: "Note deleted successfully" });
   } catch (error) {
-    res.status(500).json({ error: 'Error deleting note: ' + error.message });
+    res.status(500).json({ error: "Error deleting note: " + error.message });
   }
 });
 
@@ -1282,5 +1305,4 @@ vaibhav.get("/test", (req, res) => {
   res.send("Hello Tanushree");
 });
 
-// ✅ Export the Express app as Firebase Function
 exports.api = functions.https.onRequest(vaibhav);

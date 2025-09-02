@@ -206,7 +206,7 @@ console.log(subject,activeDocId);
         const result = await deleteNote(subject, activeDocId);
         if (result.success) {
           setSaveStatus("success");
-          setNote(null);
+          setNote(note);
           setActiveDocId(null);
          
           if (units.length > 1) {
