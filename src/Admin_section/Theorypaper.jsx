@@ -1,78 +1,126 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { useNotes } from "../context/NotesProvider"; // adjust path if needed
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { useNotes } from "../context/NotesProvider"; // Assuming this is Airesposnseprovider
+import { useUser } from "../context/UserProvider";
+import { X, Menu } from "lucide-react";
+import { useAi } from "../context/Airesposnseprovider";
 
 const Theorypaper = () => {
-  const {
-    subject,
-    subjects,
-    units,
-    note,
-    fetchSubjects,
-    fetchUnits,
-    fetchNote,
-    generateTheoryContent,
-    generatedContent,
-  } = useNotes();
+  const { subjects, units, fetchSubjects, fetchUnits, fetchNote, note } =
+    useNotes();
 
-  const [activeUnit, setActiveUnit] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState("");
+  const { generateTheoryContent, generatedContent, setCreatepdf } = useAi();
+  const { theme } = useUser();
+  const [selUnits, setSelUnits] = useState([]);
+  const [selSubj, setSelSubj] = useState("");
   const [prompt, setPrompt] = useState("");
-  const navigate = useNavigate();
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedNotesContent, setSelectedNotesContent] = useState({});
+  const fetchingUnits = useRef(new Set());
+  const isLight = theme === "light";
 
-  // Example subjectNameMap (adjust based on your actual mapping)
-  const subjectNameMap = {
-    "adv-python": "adv-python",
-    // Add more mappings as needed
+  const cls = {
+    bg: isLight ? "bg-gray-100" : "bg-gray-900",
+    card: isLight ? "bg-white" : "bg-[#1e1e1e]",
+    border: isLight ? "border-gray-200" : "border-gray-700",
+    text: isLight ? "text-gray-900" : "text-white",
+    muted: isLight ? "text-gray-600" : "text-gray-400",
+    hover: isLight ? "hover:bg-gray-100" : "hover:bg-gray-700",
   };
 
-  // Fetch subjects once
+  const extractMarkdownContent = (noteObj) => {
+    if (!noteObj?.content && typeof noteObj !== "string") return "";
+    const content = typeof noteObj === "string" ? noteObj : noteObj.content;
+    return content
+      .replace(
+        /<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<\/?[^>]+(>|$)/gi,
+        ""
+      )
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/\n\s*\n/g, "\n")
+      .trim()
+      .replace(/^Data Structures\s*$/gm, "## Data Structures")
+      .replace(/^(\s*-|\d+\.\s)/gm, "  - ");
+  };
+
   useEffect(() => {
-    if (subjects.length === 0) {
-      fetchSubjects();
-    }
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (!subjects.length) fetchSubjects();
   }, [subjects, fetchSubjects]);
 
-  // Auto-select first unit
   useEffect(() => {
-    if (units.length > 0 && !activeUnit) {
-      const sorted = [...units].sort(
+    if (note && fetchingUnits.current.size) {
+      const unitId = Array.from(fetchingUnits.current)[0];
+      setSelectedNotesContent((prev) => ({
+        ...prev,
+        [unitId]: extractMarkdownContent(note),
+      }));
+      fetchingUnits.current.delete(unitId);
+    }
+  }, [note]);
+
+  useEffect(() => {
+    if (units.length && !selUnits.length) {
+      const first = [...units].sort(
         (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
-      );
-      const first = sorted[0];
+      )[0];
       if (first?.docId) {
-        setActiveUnit(first.docId);
+        fetchingUnits.current.add(first.docId);
         fetchNote(first);
+        setSelUnits([first.docId]);
       }
     }
-  }, [units, activeUnit, fetchNote]);
+  }, [units, selUnits.length, fetchNote]);
 
-  // On click unit
   const handleUnitClick = useCallback(
     (unitObj) => {
-      setActiveUnit(unitObj.docId);
-      fetchNote(unitObj);
+      const unitId = unitObj.docId;
+      setSelUnits((prev) =>
+        prev.includes(unitId)
+          ? prev.filter((id) => id !== unitId)
+          : [...prev, unitId]
+      );
+      if (!selectedNotesContent[unitId] && !fetchingUnits.current.has(unitId)) {
+        fetchingUnits.current.add(unitId);
+        fetchNote(unitObj);
+      }
+      if (isMobile) setShowSidebar(false);
     },
-    [fetchNote]
+    [fetchNote, isMobile, selectedNotesContent]
   );
 
-  // Handle subject selection
   const handleSubjectChange = (e) => {
     const subjValue = e.target.value;
     const subj = subjects.find(
-      (s) => (typeof s === "string" ? s : s.subjectName || s.name || s.title || s) === subjValue
+      (s) =>
+        (typeof s === "string" ? s : s.subjectName || s.name || s) === subjValue
     );
-    setSelectedSubject(subjValue);
-    setActiveUnit(null);
-    if (subj) {
-      fetchUnits(subj);
-    }
+    setSelSubj(subjValue);
+    setSelUnits([]);
+    setSelectedNotesContent({});
+    if (subj) fetchUnits(subj);
   };
 
-  // Handle generate content
-  const handleGenerateContent = () => {
-    if (selectedSubject && note) {
-      generateTheoryContent(selectedSubject, note, prompt);
+  const handleGenerate = () => {
+    if (selSubj && selUnits.length) {
+      // Concatenate all selected notes content into a single string
+      const notesContent = selUnits
+        .map((unitId) => selectedNotesContent[unitId] || "")
+        .filter(Boolean)
+        .join("\n\n");
+      if (notesContent) {
+        generateTheoryContent(selSubj, notesContent, prompt);
+      } else {
+        console.error("No notes content available for selected units.");
+      }
     }
   };
 
@@ -80,118 +128,275 @@ const Theorypaper = () => {
     (a, b) => parseFloat(a.unit || 9999) - parseFloat(b.unit || 9999)
   );
 
-  const getHeadingDisplay = (unitObj) => {
+  const getHeading = (unitObj) => {
     const unitNum = unitObj.unit || "???";
-    let headingText = unitObj.heading || "Untitled";
-
-    if (headingText.startsWith(unitNum)) {
-      headingText = headingText
-        .replace(unitNum, "")
-        .replace(/^[:.\s-]+/, "")
-        .trim();
-    }
-
-    return `Unit ${unitNum}: ${headingText}`;
+    const heading = unitObj.heading || "Untitled";
+    return heading.startsWith(unitNum)
+      ? `Unit ${unitNum}: ${heading
+          .replace(unitNum, "")
+          .replace(/^[:.\s-]+/, "")
+          .trim()}`
+      : `Unit ${unitNum}: ${heading}`;
   };
 
-  // Find the selected unit object for displaying its ID
-  const selectedUnitObj = sortedUnits.find((unit) => unit.docId === activeUnit);
+  const selUnitObjs = sortedUnits.filter((unit) =>
+    selUnits.includes(unit.docId)
+  );
+  const genratepdf = () => {
+    setCreatepdf(true);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-        {/* Left Section: Dropdown and Units */}
-        <div className="space-y-4">
-          {/* Subject Dropdown at Top Left */}
-          <select
-            className="w-full p-2 border border-gray-300 rounded-md text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            value={selectedSubject}
-            onChange={handleSubjectChange}
-          >
-            <option value="">Select a Subject</option>
-            {subjects.map((subj, idx) => (
-              <option
-                key={idx}
-                value={typeof subj === "string" ? subj : subj.subjectName || subj.name || subj.title || subj}
-                className="text-sm"
-              >
-                {subjectNameMap[subj] || (typeof subj === "string" ? subj : subj.subjectName || subj.name || subj.title || "NO NAME")}
-              </option>
-            ))}
-          </select>
-
-          {/* Units Display */}
-          <div className="bg-white p-4 rounded-md shadow-md h-full">
-            <h1 className="text-xl font-bold mb-4">Theory Paper</h1>
-            {selectedSubject && sortedUnits.length > 0 ? (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">
-                  Units for {subjectNameMap[selectedSubject] || selectedSubject}:
-                </h2>
-                <p className="flex flex-wrap gap-2">
-                  {sortedUnits.map((unit) => (
-                    <span
-                      key={unit.docId}
-                      className={`inline-block px-3 py-1 rounded-md text-sm cursor-pointer hover:bg-blue-100 ${
-                        activeUnit === unit.docId ? "bg-blue-200 text-blue-800 font-medium" : "bg-gray-200 text-gray-800"
-                      }`}
-                      onClick={() => handleUnitClick(unit)}
-                    >
-                      {getHeadingDisplay(unit)}
-                    </span>
+    <div className={`min-h-screen ${cls.bg}`}>
+      <div className="flex h-screen">
+        {isMobile && showSidebar && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setShowSidebar(false)}
+          />
+        )}
+        <div
+          className={`${
+            isMobile ? "fixed left-0 top-0 z-50" : "relative"
+          } h-full transition-all duration-300 ${
+            showSidebar
+              ? isMobile
+                ? "w-[85vw] max-w-[320px]"
+                : "w-[280px]"
+              : isMobile
+              ? "-translate-x-full w-[85vw] max-w-[320px]"
+              : "w-0"
+          } ${cls.card} ${cls.border} border-r shadow-lg overflow-hidden`}
+        >
+          <div className="h-full flex flex-col">
+            <div className="pt-2">
+              {isMobile && (
+                <button
+                  onClick={() => setShowSidebar(false)}
+                  className={`p-2 rounded-md ${cls.hover}`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            <div className={`${isMobile ? "pt-4" : "pt-0"}`}>
+              <div className="p-[2px] rounded-md bg-gradient-to-r from-blue-800 via-indigo-700 to-purple-800 animate-pulse">
+                <select
+                  onChange={handleSubjectChange}
+                  value={selSubj}
+                  className={`w-full p-3 rounded-md text-sm appearance-none focus:outline-none ${cls.card} ${cls.text}`}
+                >
+                  <option value="" disabled hidden>
+                    -- Select Subject --
+                  </option>
+                  {subjects.map((subj, idx) => (
+                    <option key={idx} value={subj}>
+                      {{
+                        "adv-python": "Advanced Python",
+                        bootstrap: "Bootstrap",
+                        c: "C Programming",
+                        cpp: "C++ Programming",
+                        css: "CSS",
+                        dsa: "Data Structures & Algorithms",
+                        dsaj: "DSA with Java",
+                        express: "Express.js",
+                        flutter: "Flutter",
+                        html: "HTML",
+                        java: "Java",
+                        javascript: "JavaScript",
+                        "kid-python": "Python for Kids",
+                        mongo: "MongoDB",
+                        mysql: "MySQL",
+                        nextjs: "Next.js",
+                        postgres: "PostgreSQL",
+                        power_bi: "Power BI",
+                        python: "Python",
+                        react: "React.js",
+                      }[subj] || subj}
+                    </option>
                   ))}
-                </p>
+                </select>
               </div>
-            ) : (
-              <p className="text-gray-500">
-                {selectedSubject
-                  ? "No units available for this subject."
-                  : "Select a subject to view its units."}
-              </p>
-            )}
-          </div>
-
-          {/* Generate Content Section */}
-          <div className="bg-white p-4 rounded-md shadow-md">
-            <h2 className="text-lg font-semibold mb-2">Generate Content</h2>
-            <textarea
-              className="w-full p-2 border border-gray-300 rounded-md mb-2"
-              placeholder="Enter a prompt (optional)"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-            <button
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              onClick={handleGenerateContent}
-              disabled={!selectedSubject || !note}
-            >
-              Generate
-            </button>
-            {generatedContent && (
-              <div className="mt-4 p-2 bg-gray-100 rounded-md">
-                <h3 className="text-md font-semibold">Generated Content:</h3>
-                <pre className="whitespace-pre-wrap">{generatedContent}</pre>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h3 className={`text-sm font-medium px-2 ${cls.muted}`}>
+                  Units ({selUnits.length} selected)
+                </h3>
+                {selUnits.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setSelUnits([]);
+                      setSelectedNotesContent({});
+                    }}
+                    className={`text-xs px-2 py-1 rounded ${
+                      isLight
+                        ? "text-red-600 hover:bg-red-50"
+                        : "text-red-400 hover:bg-red-900/20"
+                    }`}
+                  >
+                    Clear all
+                  </button>
+                )}
               </div>
-            )}
+              <ul className="space-y-1 ps-1 m-0">
+                {sortedUnits.map((unit, idx) => {
+                  const unitId = unit.docId || `unit-${idx}`;
+                  const isSelected = selUnits.includes(unitId);
+                  return (
+                    <li
+                      key={unitId}
+                      onClick={() => handleUnitClick(unit)}
+                      className={`cursor-pointer px-3 py-2 rounded-md text-left text-sm transition-colors border border-transparent ${
+                        isSelected
+                          ? isLight
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : "bg-blue-800 text-blue-100 border-blue-600"
+                          : isLight
+                          ? "text-gray-700 hover:bg-gray-100 hover:border-gray-200"
+                          : "text-gray-300 hover:bg-gray-700 hover:border-gray-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{getHeading(unit)}</span>
+                        {isSelected && (
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              isLight
+                                ? "bg-blue-200 text-blue-800"
+                                : "bg-blue-700 text-blue-100"
+                            }`}
+                          >
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {!showSidebar && (
+            <button
+              onClick={() => setShowSidebar(true)}
+              className={`p-2 rounded-md ${cls.hover}`}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+          <div className="flex-1 pt-1 h-full min-h-0">
+            <div className="h-full overflow-auto">
+              <div
+                className={`${cls.card} rounded-lg shadow-md p-3 flex flex-col min-h-0`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    className={`flex-[3] p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isLight
+                        ? "border-gray-300 bg-white text-gray-900"
+                        : "border-gray-600 bg-gray-800 text-white"
+                    }`}
+                    placeholder="Enter a prompt (optional)"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                  />
+                  <button
+                    className="flex-[1] px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    onClick={handleGenerate}
+                    disabled={!selSubj || !selUnits.length}
+                  >
+                    Generate
+                  </button>
+                </div>
 
-        {/* Right Section: Tweaks */}
-        <div className="bg-white p-6 rounded-md shadow-md space-y-6">
-          <h2 className="text-lg font-semibold">Tweaks</h2>
-          <div>
-            <p className="text-md font-medium">Selected Subject:</p>
-            <p className="text-gray-700 text-lg">{subjectNameMap[selectedSubject] || selectedSubject || "None"}</p>
-          </div>
-          <div>
-            <p className="text-md font-medium">Selected Unit:</p>
-            <p className="text-gray-700 text-lg">
-              {selectedUnitObj ? getHeadingDisplay(selectedUnitObj) : "None"}
-            </p>
-          </div>
-          <div>
-            <p className="text-md font-medium">Unit ID:</p>
-            <p className="text-gray-700 text-lg">{selectedUnitObj?.docId || "None"}</p>
+                <div className={`${cls.card} mt-3`}>
+                  {selUnitObjs.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {selUnitObjs.map((unit) => (
+                        <div
+                          key={unit.docId}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.8rem] ${
+                            isLight
+                              ? "bg-blue-50 border border-blue-200 text-blue-900"
+                              : "bg-blue-900/20 border border-blue-800 text-blue-200"
+                          }`}
+                        >
+                          <span>{getHeading(unit)}</span>
+                          <button
+                            onClick={() => {
+                              setSelUnits((prev) =>
+                                prev.filter((id) => id !== unit.docId)
+                              );
+                              setSelectedNotesContent((prev) => {
+                                const newContent = { ...prev };
+                                delete newContent[unit.docId];
+                                return newContent;
+                              });
+                            }}
+                            className={
+                              isLight
+                                ? "text-red-600 hover:bg-red-100"
+                                : "text-red-400 hover:bg-red-900/30"
+                            }
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={`text-xs ${cls.muted}`}>No units selected</p>
+                  )}
+                </div>
+                {generatedContent && (
+                  <div className="mt-6 p-6 rounded-lg shadow-sm border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-600 flex-1 overflow-auto">
+                    <div className="flex justify-between items-center mb-5">
+                      <h2 className="text-xl font-semibold text-[#1F2A44]">
+                        Question Paper
+                      </h2>
+                      <button
+                        onClick={genratepdf}
+                        className="px-4 py-2 bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] transition-colors duration-200"
+                      >
+                        Generate PDF
+                      </button>
+                    </div>
+
+                    <div className="space-y-6 text-left dark:text-gray-900 text-base">
+                      {generatedContent.split("\n\n").map((section, idx) => (
+                        <div key={idx} className="space-y-3">
+                          {section.split("\n").map((line, i) => {
+                            // Highlight code blocks
+                            if (line.startsWith("```")) {
+                              return (
+                                <pre
+                                  key={i}
+                                  className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md text-sm font-mono text-[#1F2A44] dark:text-gray-200 overflow-auto"
+                                >
+                                  {line.replace(/```/g, "")}
+                                </pre>
+                              );
+                            }
+                            return (
+                              <p
+                                key={i}
+                                className="leading-relaxed tracking-wide"
+                              >
+                                {line}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+             
+            </div>
           </div>
         </div>
       </div>

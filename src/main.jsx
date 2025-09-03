@@ -7,7 +7,7 @@ import App from "./App.jsx";
 import { UserProvider } from "./context/UserProvider.jsx";
 import { ProblemProvider } from "./context/ProblemProvider.jsx"; // ✅ FIXED IMPORT
 import { NotesProvider } from "./context/NotesProvider.jsx"; // 👈 import it at top
-
+import { Airesposnseprovider } from "./context/Airesposnseprovider.jsx"; // 👈 import it at top
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "./index.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -15,8 +15,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <UserProvider>
         <ProblemProvider>
-          <NotesProvider> {/* ✅ Add this line */}
-            <App />
+          <NotesProvider>  
+            <Airesposnseprovider> 
+              <App />
+            </Airesposnseprovider>
           </NotesProvider>
         </ProblemProvider>
       </UserProvider>

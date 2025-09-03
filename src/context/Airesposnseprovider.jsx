@@ -3,7 +3,11 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const Aicontext = createContext();
 
 export function useAi() {
-  return useContext(Aicontext);
+  const context = useContext(Aicontext);
+  if (!context) {
+    throw new Error('useAi must be used within an Airesposnseprovider');
+  }
+  return context;
 }
 
 export function Airesposnseprovider({ children }) {
@@ -11,7 +15,8 @@ export function Airesposnseprovider({ children }) {
   const [units, setUnits] = useState([]);
   const [note, setNote] = useState(null);
   const [generatedContent, setGeneratedContent] = useState("");
-
+ const[craetepdf,setCreatepdf]=useState(false);
+ console.log(craetepdf);
   // Mock fetch functions (replace with actual API calls if needed)
   const fetchSubjects = () => {
     // Placeholder: Replace with actual API call to fetch subjects
@@ -34,7 +39,8 @@ export function Airesposnseprovider({ children }) {
   // API function to generate questions/notes
   const generateTheoryContent = async (subject, note, prompt = "") => {
     try {
-      const response = await fetch("http://localhost:3000/api/generate-que", {
+      console.log("Generating content with:");
+      const response = await fetch("https://api-e5q6islzdq-uc.a.run.app/api/generate-que", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,6 +74,7 @@ export function Airesposnseprovider({ children }) {
     fetchNote,
     generateTheoryContent,
     generatedContent,
+    setCreatepdf
   };
 
   return <Aicontext.Provider value={value}>{children}</Aicontext.Provider>;

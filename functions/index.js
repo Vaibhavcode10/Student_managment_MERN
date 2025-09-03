@@ -17,7 +17,6 @@ vaibhav.use((req, res, next) => {
   next();
 });
 
-
 // ✅ CACHING LAYER - Add this to reduce repeated reads
 const cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -957,7 +956,8 @@ vaibhav.patch("/api/notes/:subject/:docId", async (req, res) => {
 // ✅ AI Ask endpoint
 vaibhav.post("/api/ask-ai", async (req, res) => {
   const { question } = req.body;
-  if (!question) return res.status(400).json({ error: "No question provided." });
+  if (!question)
+    return res.status(400).json({ error: "No question provided." });
 
   try {
     const response = await axios.post(
@@ -983,9 +983,9 @@ You are an MCQ generator. Generate questions in the following JSON format only:
 ]
 
 Return **only JSON**, no explanations, no extra text.
-            `
+            `,
           },
-          { role: "user", content: question }
+          { role: "user", content: question },
         ],
         temperature: 0.7,
       },
@@ -1014,7 +1014,6 @@ Return **only JSON**, no explanations, no extra text.
   }
 });
 
-
 //create theory notes
 vaibhav.post("/api/generate-que", async (req, res) => {
   const { subject, note, prompt } = req.body;
@@ -1035,13 +1034,34 @@ vaibhav.post("/api/generate-que", async (req, res) => {
         model: "deepseek-chat",
         messages: [
           {
-            role: "system",
-            content: "Generate theory notes or questions in Markdown (## Note # or ## Question #) based on subject and note. Use prompt if provided. No extra text."
+  role: "system",
+  content: `You are a question paper generator. Generate questions strictly in Markdown. Follow these rules:
+
+                ## Section 1: 5 MCQs (5 marks each)
+                Number each question from 1 to 5. Include options A–D.
+
+                ## Section 2: 5 Fill in the Blanks (5 marks each)
+                Number each question from 1 to 5.
+
+                ## Section 3: 5 Correct the Code (10 marks each)
+                Number each question from 1 to 5.
+
+                ## Section 4: 5 Find the Error (10 marks each)
+                Number each question from 1 to 5.
+
+                ## Section 5: 5 Short Answer (10 marks each)
+                Number each question from 1 to 5.
+
+                ## Section 6: 5 Write a Method / Program (20 marks each)
+                Number each question from 1 to 5.
+
+               Use **only the notes provided**. Do not add extra text. Include marks in parentheses. Format exactly as above.`
+}
+,
+          {
+            role: "user",
+            content: userContent,
           },
-          { 
-            role: "user", 
-            content: userContent 
-          }
         ],
         temperature: 0.7,
       },
@@ -1055,7 +1075,7 @@ vaibhav.post("/api/generate-que", async (req, res) => {
 
     const markdownContent = response.data.choices[0].message.content.trim();
 
-    res.set('Content-Type', 'text/markdown');
+    res.set("Content-Type", "text/markdown");
     res.send(markdownContent);
   } catch (error) {
     console.error("AI error:", error?.response?.data || error.message);
